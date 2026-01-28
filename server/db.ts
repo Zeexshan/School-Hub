@@ -11,7 +11,7 @@ if (!MONGODB_URI) {
 
 export async function connectDB(): Promise<void> {
   try {
-    await mongoose.connect(MONGODB_URI, {
+    await mongoose.connect(MONGODB_URI as string, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
     });
