@@ -1,0 +1,96 @@
+Frontend Navigation Implementation: Admin Management Pages
+Current State & Problem
+The Admin Dashboard provides navigation links to key management areas (Students, Classes, Fees), but these routes are not yet registered in the application router. Users encounter 404 errors when attempting to access these sections.
+
+Required Implementation: Admin Management Pages
+Objective
+Create placeholder pages for the three core admin management sections and integrate them into the routing system. These pages should maintain design consistency with the existing dashboard while providing a foundation for future feature development.
+
+Page Creation Strategy
+Location: client/src/pages/admin/
+
+Pages to Create:
+
+Student Management Page (students.tsx)
+
+Purpose: Future home for student directory, enrollment, and profile management.
+
+Class Management Page (classes.tsx)
+
+Purpose: Future interface for creating/editing classes, sections, and academic structure.
+
+Fee Management Page (fees.tsx)
+
+Purpose: Future billing and payment tracking interface.
+
+Design Consistency Requirements
+Each page should:
+
+Use the existing Layout component (imported from @/components/layout) to ensure the navigation sidebar and header remain consistent.
+
+Employ Card components (imported from @/components/ui/card) to match the visual design system used in the Dashboard.
+
+Include appropriate placeholder content:
+
+A descriptive page title (e.g., "Student Management Panel").
+
+Brief explanatory text indicating the page's future purpose.
+
+Design Philosophy: Think of these as "coming soon" pages that demonstrate to the client that the infrastructure is in place.
+
+Router Integration
+File to Modify: client/src/App.tsx
+
+Current Router Structure: The application uses the wouter library for routing (NOT React Router). The existing Dashboard route is already configured at /admin/dashboard using a custom ProtectedRoute component.
+
+Routes to Add: Integrate three new protected routes within the existing Switch block:
+
+Student Management Route
+
+Path: /admin/students
+
+Access: ["admin"]
+
+Component: The Students page you created.
+
+Class Management Route
+
+Path: /admin/classes
+
+Access: ["admin"]
+
+Component: The Classes page you created.
+
+Fee Management Route
+
+Path: /admin/fees
+
+Access: ["admin"]
+
+Component: The Fees page you created.
+
+Implementation Approach
+Import the New Pages: Add import statements at the top of App.tsx for all three new page components.
+
+Add Protected Route Entries:
+
+Locate the existing <Switch> block.
+
+Add three new <Route> entries.
+
+Inside each Route, use the <ProtectedRoute> component passing the component and allowedRoles.
+
+Preservation Note:
+
+Do not modify the existing /admin/dashboard route.
+
+Do not change any other routing logic.
+
+Simply extend the router with these three additions.
+
+Scope & Limitations
+What to Implement: ✅ Create three placeholder page components with consistent layout. ✅ Import and register these pages in the App.tsx router. ✅ Ensure protected route configuration with Admin role requirement.
+
+What NOT to Implement (at this stage): ❌ Full student CRUD functionality. ❌ Data tables or forms. ❌ API integration for these pages.
+
+Proceed with creating these three admin pages and integrating them into the router.

@@ -9,6 +9,9 @@ import { Loader2 } from "lucide-react";
 // Pages
 import LoginPage from "@/pages/auth/login";
 import AdminDashboard from "@/pages/admin/dashboard";
+import StudentsPage from "@/pages/admin/students";
+import ClassesPage from "@/pages/admin/classes";
+import FeesPage from "@/pages/admin/fees";
 import AttendancePage from "@/pages/teacher/attendance";
 import NotFound from "@/pages/not-found";
 
@@ -71,6 +74,15 @@ function Router() {
       {/* Admin Routes */}
       <Route path="/admin/dashboard">
         <ProtectedRoute component={AdminDashboard} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/admin/students">
+        <ProtectedRoute component={StudentsPage} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/admin/classes">
+        <ProtectedRoute component={ClassesPage} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/admin/fees">
+        <ProtectedRoute component={FeesPage} allowedRoles={["admin"]} />
       </Route>
 
       {/* Teacher Routes */}
