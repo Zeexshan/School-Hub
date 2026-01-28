@@ -13,7 +13,13 @@ import AttendancePage from "@/pages/teacher/attendance";
 import NotFound from "@/pages/not-found";
 
 // Protected Route Component
-function ProtectedRoute({ component: Component, allowedRoles }: { component: React.ComponentType, allowedRoles: string[] }) {
+function ProtectedRoute({
+  component: Component,
+  allowedRoles,
+}: {
+  component: React.ComponentType;
+  allowedRoles: string[];
+}) {
   const { user, isLoading } = useAuth();
 
   if (isLoading) {
@@ -30,8 +36,8 @@ function ProtectedRoute({ component: Component, allowedRoles }: { component: Rea
 
   if (!allowedRoles.includes(user.role)) {
     // If logged in but wrong role, redirect to their dashboard
-    if (user.role === 'admin') return <Redirect to="/admin/dashboard" />;
-    if (user.role === 'teacher') return <Redirect to="/teacher/dashboard" />;
+    if (user.role === "admin") return <Redirect to="/admin/dashboard" />;
+    if (user.role === "teacher") return <Redirect to="/teacher/dashboard" />;
     return <Redirect to="/student/dashboard" />;
   }
 
@@ -41,15 +47,18 @@ function ProtectedRoute({ component: Component, allowedRoles }: { component: Rea
 // Redirect root to dashboard based on role or login
 function RootRedirect() {
   const { user, isLoading } = useAuth();
-  
+
   if (isLoading) return null;
-  
+
   if (!user) return <Redirect to="/auth/login" />;
-  
-  switch(user.role) {
-    case "admin": return <Redirect to="/admin/dashboard" />;
-    case "teacher": return <Redirect to="/teacher/dashboard" />;
-    default: return <Redirect to="/student/dashboard" />;
+
+  switch (user.role) {
+    case "admin":
+      return <Redirect to="/admin/dashboard" />;
+    case "teacher":
+      return <Redirect to="/teacher/dashboard" />;
+    default:
+      return <Redirect to="/student/dashboard" />;
   }
 }
 
@@ -58,19 +67,19 @@ function Router() {
     <Switch>
       <Route path="/" component={RootRedirect} />
       <Route path="/auth/login" component={LoginPage} />
-      
+
       {/* Admin Routes */}
       <Route path="/admin/dashboard">
-        <ProtectedRoute component={AdminDashboard} allowedRoles={['admin']} />
+        <ProtectedRoute component={AdminDashboard} allowedRoles={["admin"]} />
       </Route>
-      
+
       {/* Teacher Routes */}
       <Route path="/teacher/dashboard">
         {/* Placeholder for teacher dashboard, reusing attendance for MVP if needed or redirecting */}
-        <ProtectedRoute component={AttendancePage} allowedRoles={['teacher']} />
+        <ProtectedRoute component={AttendancePage} allowedRoles={["teacher"]} />
       </Route>
       <Route path="/teacher/attendance">
-        <ProtectedRoute component={AttendancePage} allowedRoles={['teacher']} />
+        <ProtectedRoute component={AttendancePage} allowedRoles={["teacher"]} />
       </Route>
 
       {/* Fallback */}
