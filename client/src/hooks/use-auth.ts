@@ -5,7 +5,12 @@ import { useLocation } from "wouter";
 
 // Helper to handle both 401 and success responses for /me
 async function fetchMe() {
-  const res = await fetch(api.auth.me.path);
+  const token = localStorage.getItem("token");
+  const headers: HeadersInit = {};
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  const res = await fetch(api.auth.me.path, { headers });
   if (res.status === 401) return null;
   if (!res.ok) throw new Error("Failed to fetch user");
   return api.auth.me.responses[200].parse(await res.json());
@@ -38,6 +43,10 @@ export function useAuth() {
       return api.auth.login.responses[200].parse(await res.json());
     },
     onSuccess: (data) => {
+      // Save token to localStorage
+      if (data.token) {
+        localStorage.setItem("token", data.token);
+      }
       queryClient.setQueryData([api.auth.me.path], data.user);
       toast({ title: "Welcome back!", description: `Logged in as ${data.user.name}` });
       
@@ -57,12 +66,13 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      // In a real app this might call a logout endpoint. 
-      // For now we just clear client state since we simulate JWT/session
+      // Clear the token from localStorage
+      localStorage.removeItem("token");
       return Promise.resolve(); 
     },
     onSuccess: () => {
       queryClient.setQueryData([api.auth.me.path], null);
+      queryClient.clear();
       setLocation("/auth/login");
       toast({ title: "Logged out", description: "See you next time!" });
     },
