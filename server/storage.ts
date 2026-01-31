@@ -95,8 +95,14 @@ interface FeeDocument extends Document {
 interface TeacherProfileDocument extends Document {
   userId: string;
   salary: number;
-  subjectSpecialization: string;
+  panNumber: string;
+  aadhaarNumber: string;
+  qualification: string;
+  subjectSpecialization: string[];
   joinDate: string;
+  designation: string;
+  employeeId: string;
+  salaryHistory: any[];
 }
 
 const UserSchema = new Schema<UserDocument>({
@@ -173,9 +179,42 @@ const FeeSchema = new Schema<FeeDocument>({
 const TeacherProfileSchema = new Schema<TeacherProfileDocument>({
   userId: { type: String, required: true, unique: true },
   salary: { type: Number, required: true },
-  subjectSpecialization: { type: String, required: true },
+  panNumber: { type: String, required: true },
+  aadhaarNumber: { type: String, required: true },
+  qualification: { type: String, required: true },
+  subjectSpecialization: [{ type: String, required: true }],
   joinDate: { type: String, required: true },
+  designation: { type: String, required: true },
+  employeeId: { type: String, required: true, unique: true },
+  salaryHistory: { type: [Schema.Types.Mixed], default: [] },
 });
+
+interface TimetableDocument extends Document {
+  classId: string;
+  sectionId: string;
+  teacherId: string;
+  subject: string;
+  dayOfWeek: number;
+  periodNumber: number;
+  startTime: string;
+  endTime: string;
+}
+
+const TimetableSchema = new Schema<TimetableDocument>({
+  classId: { type: String, required: true },
+  sectionId: { type: String, required: true },
+  teacherId: { type: String, required: true },
+  subject: { type: String, required: true },
+  dayOfWeek: { type: Number, required: true, min: 1, max: 6 },
+  periodNumber: { type: Number, required: true, min: 1, max: 8 },
+  startTime: { type: String, required: true },
+  endTime: { type: String, required: true },
+});
+
+TimetableSchema.index({ classId: 1, sectionId: 1, dayOfWeek: 1, periodNumber: 1 }, { unique: true });
+TimetableSchema.index({ teacherId: 1, dayOfWeek: 1, periodNumber: 1 }, { unique: true });
+
+const TimetableModel = mongoose.model<TimetableDocument>("Timetable", TimetableSchema);
 
 AttendanceSchema.index({ date: 1, classId: 1, sectionId: 1 });
 AttendanceSchema.index({ studentId: 1, date: 1 });
@@ -290,8 +329,28 @@ function docToTeacherProfile(doc: TeacherProfileDocument): TeacherProfile {
     id: doc._id.toString(),
     userId: doc.userId,
     salary: doc.salary,
+    panNumber: doc.panNumber,
+    aadhaarNumber: doc.aadhaarNumber,
+    qualification: doc.qualification,
     subjectSpecialization: doc.subjectSpecialization,
     joinDate: doc.joinDate,
+    designation: doc.designation,
+    employeeId: doc.employeeId,
+    salaryHistory: doc.salaryHistory || [],
+  };
+}
+
+function docToTimetable(doc: TimetableDocument): Timetable {
+  return {
+    id: doc._id.toString(),
+    classId: doc.classId,
+    sectionId: doc.sectionId,
+    teacherId: doc.teacherId,
+    subject: doc.subject,
+    dayOfWeek: doc.dayOfWeek,
+    periodNumber: doc.periodNumber,
+    startTime: doc.startTime,
+    endTime: doc.endTime,
   };
 }
 
@@ -350,8 +409,7 @@ export interface IStorage {
   getTeacherProfileByUserId(userId: string): Promise<TeacherProfile | undefined>;
   updateTeacherProfile(userId: string, data: Partial<InsertTeacherProfile>): Promise<TeacherProfile | undefined>;
   getAllTeacherProfiles(): Promise<TeacherProfile[]>;
-  
-  // Analytics methods
+  paySalary(userId: string, month: string, amount: number): Promise<TeacherProfile | undefined>;
   getMonthlyRevenue(): Promise<number>;
   getTodayAttendancePercentage(): Promise<number>;
 }
@@ -595,6 +653,44 @@ class MongoStorage implements IStorage {
   async getAllTeacherProfiles(): Promise<TeacherProfile[]> {
     const docs = await TeacherProfileModel.find();
     return docs.map(docToTeacherProfile);
+  }
+
+  async paySalary(userId: string, month: string, amount: number): Promise<TeacherProfile | undefined> {
+    const doc = await TeacherProfileModel.findOneAndUpdate(
+      { userId },
+      {
+        $push: {
+          salaryHistory: {
+            month,
+            amount,
+            paidDate: new Date(),
+            status: "Paid"
+          }
+        }
+      },
+      { new: true }
+    );
+    return doc ? docToTeacherProfile(doc) : undefined;
+  }
+
+  async createTimetable(timetableData: InsertTimetable): Promise<Timetable> {
+    const doc = await TimetableModel.create(timetableData);
+    return docToTimetable(doc);
+  }
+
+  async getTimetableByClass(classId: string, sectionId: string): Promise<Timetable[]> {
+    const docs = await TimetableModel.find({ classId, sectionId }).sort({ dayOfWeek: 1, periodNumber: 1 });
+    return docs.map(docToTimetable);
+  }
+
+  async getTimetableByTeacher(teacherId: string): Promise<Timetable[]> {
+    const docs = await TimetableModel.find({ teacherId }).sort({ dayOfWeek: 1, periodNumber: 1 });
+    return docs.map(docToTimetable);
+  }
+
+  async deleteTimetable(id: string): Promise<boolean> {
+    const result = await TimetableModel.findByIdAndDelete(id);
+    return !!result;
   }
 
   async getMonthlyRevenue(): Promise<number> {

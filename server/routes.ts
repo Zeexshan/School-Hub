@@ -874,6 +874,95 @@ export async function registerRoutes(
   );
 
   // Analytics endpoint
+  app.post(
+    "/api/teachers/:id/pay-salary",
+    authenticateToken,
+    requireRole("admin"),
+    async (req: Request, res: Response) => {
+      try {
+        const { month, amount } = req.body;
+        if (!month || !amount) {
+          return res.status(400).json({ message: "Month and amount are required" });
+        }
+        const updated = await storage.paySalary(req.params.id, month, amount);
+        if (!updated) {
+          return res.status(404).json({ message: "Teacher profile not found" });
+        }
+        return res.json(updated);
+      } catch (error) {
+        console.error("Pay salary error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  app.post(
+    "/api/timetable",
+    authenticateToken,
+    requireRole("admin"),
+    async (req: Request, res: Response) => {
+      try {
+        const result = insertTimetableSchema.safeParse(req.body);
+        if (!result.success) {
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
+        }
+        const timetable = await storage.createTimetable(result.data);
+        return res.status(201).json(timetable);
+      } catch (error) {
+        console.error("Create timetable error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/timetable/class/:classId/section/:sectionId",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const timetable = await storage.getTimetableByClass(req.params.classId, req.params.sectionId);
+        return res.json(timetable);
+      } catch (error) {
+        console.error("Get timetable error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  app.get(
+    "/api/timetable/teacher/:teacherId",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const timetable = await storage.getTimetableByTeacher(req.params.teacherId);
+        return res.json(timetable);
+      } catch (error) {
+        console.error("Get teacher timetable error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
+
+  app.delete(
+    "/api/timetable/:id",
+    authenticateToken,
+    requireRole("admin"),
+    async (req: Request, res: Response) => {
+      try {
+        const deleted = await storage.deleteTimetable(req.params.id);
+        if (!deleted) {
+          return res.status(404).json({ message: "Timetable entry not found" });
+        }
+        return res.status(204).send();
+      } catch (error) {
+        console.error("Delete timetable error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
   app.get(
     "/api/analytics",
     authenticateToken,
@@ -881,6 +970,22 @@ export async function registerRoutes(
     async (_req: Request, res: Response) => {
       try {
         const students = await storage.getAllStudents();
+        const teachers = await storage.getUsersByRole("teacher");
+        const monthlyRevenue = await storage.getMonthlyRevenue();
+        const todayAttendance = await storage.getTodayAttendancePercentage();
+
+        return res.json({
+          totalStudents: students.length,
+          totalTeachers: teachers.length,
+          monthlyRevenue,
+          todayAttendance,
+        });
+      } catch (error) {
+        console.error("Analytics error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
+  );
         const teachers = await storage.getUsersByRole("teacher");
         const monthlyRevenue = await storage.getMonthlyRevenue();
         const todayAttendance = await storage.getTodayAttendancePercentage();
@@ -928,7 +1033,7 @@ export async function registerRoutes(
     requireRole("admin"),
     async (req: Request, res: Response) => {
       try {
-        const { name, email, username, password, salary, subjectSpecialization } = req.body;
+        const { name, email, username, password, salary, subjectSpecialization, panNumber, aadhaarNumber, qualification, joinDate, designation, employeeId } = req.body;
         
         // Validate user data
         const userResult = insertUserSchema.safeParse({
@@ -943,6 +1048,26 @@ export async function registerRoutes(
           return res.status(400).json({
             message: "Validation failed",
             errors: userResult.error.flatten(),
+          });
+        }
+
+        // Validate profile data
+        const profileResult = insertTeacherProfileSchema.safeParse({
+          userId: "placeholder", // Will be replaced after user creation
+          salary,
+          subjectSpecialization,
+          panNumber,
+          aadhaarNumber,
+          qualification,
+          joinDate,
+          designation,
+          employeeId,
+        });
+
+        if (!profileResult.success) {
+          return res.status(400).json({
+            message: "Profile validation failed",
+            errors: profileResult.error.flatten(),
           });
         }
 
@@ -961,21 +1086,17 @@ export async function registerRoutes(
         const user = await storage.createUser(userResult.data);
         
         // Create teacher profile
-        const profileResult = insertTeacherProfileSchema.safeParse({
+        const profile = await storage.createTeacherProfile({
           userId: user.id,
           salary,
           subjectSpecialization,
-          joinDate: new Date().toISOString().split('T')[0],
+          panNumber,
+          aadhaarNumber,
+          qualification,
+          joinDate,
+          designation,
+          employeeId,
         });
-        
-        if (!profileResult.success) {
-          return res.status(400).json({
-            message: "Profile validation failed",
-            errors: profileResult.error.flatten(),
-          });
-        }
-
-        const profile = await storage.createTeacherProfile(profileResult.data);
         
         const { password: _, ...userWithoutPassword } = user;
         return res.status(201).json({ ...userWithoutPassword, profile });
@@ -992,11 +1113,13 @@ export async function registerRoutes(
     requireRole("admin"),
     async (req: Request, res: Response) => {
       try {
-        const { salary, subjectSpecialization } = req.body;
+        const { salary, subjectSpecialization, qualification, designation } = req.body;
         
         const updated = await storage.updateTeacherProfile(req.params.id, {
           salary,
           subjectSpecialization,
+          qualification,
+          designation,
         });
         
         if (!updated) {
