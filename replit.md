@@ -73,6 +73,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### 2026-01-31: Bug Fixes & Teacher Module Implementation
+- Fixed fee payment URL mismatch: Changed `/api/fees/${id}` to `/api/fees/${id}/pay` in `use-fees.ts`
+- Implemented analytics endpoint: `GET /api/analytics` returns totalStudents, totalTeachers, monthlyRevenue, todayAttendance
+- Added TeacherProfile schema and Mongoose model in `shared/schema.ts` and `server/storage.ts`
+- Added new teacher routes in `server/routes.ts`:
+  - `GET /api/teachers` - Returns teachers with their profile data
+  - `POST /api/teachers` - Creates user account and teacher profile
+  - `PATCH /api/teachers/:id` - Updates teacher profile (salary, subject)
+- Created `client/src/pages/admin/teachers.tsx` - Teacher management with table view, add/edit dialogs
+- Updated sidebar navigation in `layout.tsx` to include Teachers link
+- Registered `/admin/teachers` route in `App.tsx`
+
 ### 2026-01-31: Frontend ERP Module Implementation
 - Extended CRUD hooks in `client/src/hooks/`:
   - `use-classes.ts` - Full CRUD with create, update, delete mutations for classes and sections
