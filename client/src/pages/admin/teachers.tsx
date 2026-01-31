@@ -525,6 +525,3 @@ export default function TeachersPage() {
     </Layout>
   );
 }
-    </Layout>
-  );
-}

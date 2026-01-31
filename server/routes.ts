@@ -986,22 +986,6 @@ export async function registerRoutes(
       }
     }
   );
-        const teachers = await storage.getUsersByRole("teacher");
-        const monthlyRevenue = await storage.getMonthlyRevenue();
-        const todayAttendance = await storage.getTodayAttendancePercentage();
-
-        return res.json({
-          totalStudents: students.length,
-          totalTeachers: teachers.length,
-          monthlyRevenue,
-          todayAttendance,
-        });
-      } catch (error) {
-        console.error("Analytics error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
 
   // Teacher routes
   app.get(

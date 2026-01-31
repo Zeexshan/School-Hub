@@ -11,6 +11,7 @@ import LoginPage from "@/pages/auth/login";
 import AdminDashboard from "@/pages/admin/dashboard";
 import StudentsPage from "@/pages/admin/students";
 import TeachersPage from "@/pages/admin/teachers";
+import TimetablePage from "@/pages/admin/timetable";
 import ClassesPage from "@/pages/admin/classes";
 import FeesPage from "@/pages/admin/fees";
 import AttendancePage from "@/pages/teacher/attendance";
@@ -81,6 +82,9 @@ function Router() {
       </Route>
       <Route path="/admin/teachers">
         <ProtectedRoute component={TeachersPage} allowedRoles={["admin"]} />
+      </Route>
+      <Route path="/admin/timetable">
+        <ProtectedRoute component={TimetablePage} allowedRoles={["admin"]} />
       </Route>
       <Route path="/admin/classes">
         <ProtectedRoute component={ClassesPage} allowedRoles={["admin"]} />
