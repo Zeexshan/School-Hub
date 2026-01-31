@@ -1,0 +1,961 @@
+Here's the refined, guidance-focused version:
+
+---
+
+# Indian School ERP: Localization & Advanced Module Development Guide
+
+## Project Context & Development Stage
+
+The ERP foundation is operational with core CRUD functionality for Classes, Students, and Fees. However, the system currently lacks:
+- **Regional customization** for the Indian educational context
+- **Professional HR capabilities** for teacher and staff management
+- **Academic scheduling infrastructure** (timetables and period management)
+- **Compliance features** aligned with Indian education boards (CBSE/ICSE)
+- **Supplementary modules** for library, transport, and communication
+
+**Mission**: Transform the generic ERP into a comprehensive, India-specific school management system that meets the operational and regulatory requirements of Indian educational institutions.
+
+---
+
+## Priority: Critical Fixes (Foundation Before Enhancement)
+
+Before building new modules, resolve these foundational issues to ensure the existing dashboard functions correctly.
+
+### Fix 1: Analytics Dashboard Data Pipeline
+
+**Problem**: The Admin Dashboard displays metric cards (Total Students, Total Teachers, Revenue, Attendance) but receives no data because the analytics endpoint is missing or incomplete.
+
+**Backend Implementation** (`server/routes.ts`):
+
+**Create Analytics Endpoint** (`GET /api/analytics`):
+
+**Purpose**: Aggregate and return key metrics for the Admin Dashboard
+
+**Data to Calculate**:
+
+1. **Total Students**: Count all student records in the database
+   - Query: Count documents in the Student collection
+
+2. **Total Teachers**: Count all users with the "teacher" role
+   - Query: Count User documents where `role === "teacher"`
+
+3. **Monthly Revenue**: Sum of all "Cleared" or "Paid" fee payments
+   - Query: Aggregate Fee collection where `status === "Paid"`
+   - Sum the `amount` field
+   - Consider: Current month only, or total revenue? (Design decision)
+
+4. **Today's Attendance Rate**: Percentage of students present today
+   - Query: Find attendance records for today's date
+   - Calculate: (Present students / Total students) × 100
+   - Handle edge case: No attendance marked yet today (return 0% or "Not marked")
+
+**Response Structure**:
+```typescript
+{
+  totalStudents: number,
+  totalTeachers: number,
+  monthlyRevenue: number,
+  todayAttendance: number // Percentage value
+}
+```
+
+**Authorization**: Ensure this endpoint requires authentication and admin role verification.
+
+---
+
+### Fix 2: Indian Localization Standards
+
+Transform the UI to align with Indian conventions for currency, phone numbers, and dates.
+
+#### Currency Formatting
+
+**Current State**: The system likely displays amounts with `$` symbols (e.g., `$5000`)
+
+**Required Change**: Replace all currency displays with Indian Rupee formatting
+
+**Implementation Approach**:
+
+**Use JavaScript's Internationalization API**:
+```typescript
+const formatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR'
+});
+
+// Usage: formatter.format(5000) → "₹5,000.00"
+```
+
+**Where to Apply**:
+- Fee tables and displays
+- Revenue metrics on dashboards
+- Teacher salary information
+- Any financial data presentation
+
+**Benefits of Intl.NumberFormat**:
+- Automatic comma placement per Indian numbering system (lakhs/crores)
+- Proper decimal handling
+- Locale-aware formatting
+
+**Alternative**: Create a utility function for reusability:
+```typescript
+// utils/format.ts
+export const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR'
+  }).format(amount);
+};
+```
+
+---
+
+#### Phone Number Validation
+
+**Current State**: No region-specific phone validation
+
+**Indian Phone Number Standard**:
+- Country code: `+91`
+- Mobile numbers: 10 digits (starting with 6, 7, 8, or 9)
+- Format example: `+91 9876543210`
+
+**Implementation Approach**:
+
+**Zod Validation Schema Update**:
+```typescript
+// Example schema for forms
+const phoneSchema = z.string()
+  .regex(/^\+91[6-9]\d{9}$/, "Invalid Indian mobile number")
+  // Or allow optional formatting: /^\+91\s?[6-9]\d{9}$/
+```
+
+**Where to Apply**:
+- Student guardian contact fields
+- Teacher contact information
+- Parent/guardian phone numbers in profiles
+
+**User Experience Consideration**:
+- Pre-fill the `+91` prefix to reduce typing
+- Display format hint: "e.g., +91 9876543210"
+- Validate on blur or submit, not on every keystroke (better UX)
+
+---
+
+#### Date Format Standardization
+
+**Current State**: Likely using `MM/DD/YYYY` (American format)
+
+**Indian Standard**: `DD/MM/YYYY`
+
+**Implementation Approach**:
+
+**For Display** (showing dates to users):
+```typescript
+const formatDate = (date: Date | string) => {
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(new Date(date));
+  // Output: "31/01/2026"
+};
+```
+
+**For Date Inputs**:
+- HTML `<input type="date">` uses `YYYY-MM-DD` internally (browser standard)
+- Display the selected date in `DD/MM/YYYY` format outside the input
+- Or use a custom date picker component that natively supports the format
+
+**Where to Apply**:
+- Attendance date displays
+- Fee due dates
+- Student admission dates
+- Teacher join dates
+- Exam schedules
+
+---
+
+# Module 1: Professional Teacher & HR Management
+
+## Objective
+Extend the basic User system to include comprehensive teacher profiles with HR capabilities: qualification tracking, salary management, and payroll history.
+
+---
+
+## Backend Data Architecture
+
+### Teacher Profile Schema Enhancement
+
+**Current State**: Teachers are just User records with `role: "teacher"`
+
+**Required Enhancement**: Create a rich teacher profile system
+
+**Schema Design** (`TeacherProfile` or extension of `User` model):
+
+**Relationship Strategy**:
+- Option A: Extend the User schema with teacher-specific fields (simpler)
+- Option B: Create a separate TeacherProfile collection linked to User via `userId` (more modular)
+
+**Fields to Include**:
+
+1. **Financial Information**:
+   - `salary`: Monthly compensation amount (number)
+   - Consider: Store in paise (smallest currency unit) to avoid decimal issues
+
+2. **Identity Documents** (Indian-specific):
+   - `panNumber`: Permanent Account Number (tax identifier)
+     - Format: 10 characters (e.g., "ABCDE1234F")
+     - Validation: Regex pattern for PAN format
+   - `aadhaarNumber`: Unique identification number
+     - Format: 12 digits
+     - Security: Consider encryption or masked display (show only last 4 digits)
+
+3. **Academic Qualifications**:
+   - `qualification`: Degree/certification (e.g., "M.Sc. Physics", "B.Ed.")
+   - `subjectSpecialization`: Primary teaching subject(s)
+     - Consider: Array of subjects (teacher might teach multiple)
+     - Examples: "Physics", "Mathematics", "English Literature"
+
+4. **Employment Details**:
+   - `joinDate`: Date of joining the institution
+   - `employeeId`: Unique identifier for HR purposes
+   - `designation`: Role title (e.g., "Senior Teacher", "HOD Physics")
+
+5. **Payroll History**:
+   - `salaryHistory`: Array of payment records
+   - Each record should contain:
+     - `month`: Payment period (e.g., "January 2026")
+     - `amount`: Salary paid
+     - `paidDate`: When the payment was processed
+     - `status`: "Paid" or "Pending"
+     - `remarks`: Optional notes (bonuses, deductions)
+
+**Data Integrity Considerations**:
+- PAN and Aadhaar should be unique across all teachers
+- Salary history should be append-only (no deletions for audit trail)
+- Subject specialization should align with subjects defined in the academic system
+
+---
+
+## API Endpoints Architecture
+
+### Teacher Management Routes
+
+**List All Teachers** (`GET /api/teachers`):
+- Purpose: Display teacher directory and roster
+- Response: Array of teacher profiles with populated User data
+- Consider: Include current month's salary status for quick overview
+
+**Create Teacher Profile** (`POST /api/teachers`):
+- Purpose: Onboard a new teacher
+- Request body: User credentials + teacher-specific fields
+- Process:
+  1. Create User account with role "teacher"
+  2. Create linked TeacherProfile with HR data
+  3. Return combined profile
+- Validation: Ensure PAN/Aadhaar uniqueness, valid email
+
+**Update Teacher Profile** (`PATCH /api/teachers/:id`):
+- Purpose: Modify teacher details (promotion, salary revision, contact update)
+- Allow updating: Salary, designation, qualifications
+- Restrict: Changing PAN/Aadhaar after initial entry (audit compliance)
+
+**Salary Disbursement** (`POST /api/teachers/:id/pay-salary`):
+- Purpose: Record monthly salary payment
+- Request body: Month, amount, payment date
+- Logic:
+  1. Verify teacher exists and is active
+  2. Check if salary for this month already recorded (prevent duplicates)
+  3. Append to salaryHistory array
+  4. Return updated teacher profile
+
+---
+
+## Frontend User Experience
+
+### Teacher Management Interface
+
+**File to Create/Enhance**: `client/src/pages/admin/teachers.tsx`
+
+**Page Layout**:
+
+**Header Section**:
+- Page title: "Teacher & Staff Management"
+- "Add Teacher" button (opens dialog/modal)
+- Optional: Search/filter by subject or name
+
+**Data Table**:
+
+**Columns to Display**:
+- Teacher Name
+- Employee ID
+- Subject Specialization
+- Qualification
+- Monthly Salary (formatted as ₹)
+- Joining Date (DD/MM/YYYY format)
+- Current Month Salary Status (Badge: "Paid" or "Pending")
+- Actions (Edit, View Details, Pay Salary)
+
+### Add/Edit Teacher Form
+
+**Form Fields**:
+
+**Personal Information**:
+- Full Name
+- Email (becomes login credential)
+- Phone Number (with +91 validation)
+- Date of Birth
+
+**Identity Documents**:
+- PAN Number (text input with format validation)
+- Aadhaar Number (number input, 12 digits, masked display)
+
+**Academic Details**:
+- Highest Qualification (text or dropdown)
+- Subject Specialization (multi-select or text)
+
+**Employment Details**:
+- Date of Joining (date picker, DD/MM/YYYY)
+- Designation (dropdown: Teacher, Senior Teacher, HOD, etc.)
+- Monthly Salary (number input, formatted with ₹)
+
+**Validation**:
+- Use Zod schemas for all fields
+- Real-time validation feedback
+- Prevent duplicate PAN/Aadhaar (backend check)
+
+### Salary Payment Workflow
+
+**Trigger**: "Pay Salary" button next to a teacher with "Pending" status for the current month
+
+**Process**:
+1. Confirmation dialog: "Confirm salary payment of ₹X to [Teacher Name] for [Current Month]?"
+2. On confirm:
+   - Send POST to `/api/teachers/:id/pay-salary`
+   - Include current month and salary amount
+3. On success:
+   - Update table status to "Paid"
+   - Show toast notification: "Salary paid successfully"
+   - Invalidate queries to refresh data
+
+**Payroll History View** (optional enhancement):
+- Link or modal to view complete salary history for a teacher
+- Tabular display: Month, Amount, Date Paid, Remarks
+
+---
+
+# Module 2: Timetable & Period Management System
+
+## Objective
+Implement a comprehensive scheduling system that assigns teachers to specific classes, subjects, and time periods throughout the school week.
+
+---
+
+## Conceptual Foundation
+
+**The Scheduling Challenge**:
+A teacher doesn't just exist—they must be scheduled to teach specific subjects to specific classes at specific times. This requires a three-dimensional mapping:
+- **Who** (Teacher)
+- **What** (Subject + Class)
+- **When** (Day + Period + Time)
+
+**Use Case Example**:
+- Mr. Sharma teaches Physics to Class 10-A on Monday, Period 1 (9:00 AM - 9:45 AM)
+- Mrs. Patel teaches Mathematics to Class 10-A on Monday, Period 2 (9:45 AM - 10:30 AM)
+
+---
+
+## Backend Data Architecture
+
+### Timetable Schema Design
+
+**Schema Name**: `Timetable` (or `Period`, `Schedule`)
+
+**Fields**:
+
+1. **Class Assignment**:
+   - `classId`: Reference to Class model (ObjectId)
+   - Links the period to a specific class and section
+
+2. **Teacher Assignment**:
+   - `teacherId`: Reference to User model (with role: "teacher")
+   - Identifies who conducts this period
+
+3. **Subject**:
+   - `subject`: String (e.g., "Physics", "Mathematics", "English")
+   - Consider: Should align with teacher's subject specialization
+   - Option: Create a Subject master list for consistency
+
+4. **Temporal Information**:
+   - `dayOfWeek`: Enum or number (1=Monday, 2=Tuesday, ..., 6=Saturday)
+     - Indian schools typically operate Monday-Saturday
+   - `periodNumber`: Integer (1-8, representing the period sequence)
+   - `startTime`: Time string (e.g., "09:00")
+   - `endTime`: Time string (e.g., "09:45")
+
+**Unique Constraint Consideration**:
+A single class cannot have two different periods at the same time:
+- Unique compound index: `(classId, dayOfWeek, periodNumber)`
+
+A teacher cannot be assigned to two classes at the same time:
+- Validation logic: Before creating a period, check if the teacher is already scheduled for that day/time
+
+---
+
+## API Endpoints Architecture
+
+### Timetable Management Routes
+
+**Get Timetable for a Class** (`GET /api/timetable?classId=...`):
+- Purpose: Retrieve the complete weekly schedule for a specific class
+- Response: Array of period objects, grouped/sorted by day and period number
+- Use case: Display in a grid view on the admin or student dashboard
+
+**Get Teacher's Schedule** (`GET /api/timetable/teacher/:teacherId`):
+- Purpose: Show all periods assigned to a specific teacher
+- Response: Array of periods with populated class information
+- Use case: "My Schedule" view on teacher dashboard
+
+**Create/Update Period** (`POST /api/timetable` or `PATCH /api/timetable/:id`):
+- Purpose: Assign a teacher to a class/subject/time slot
+- Request body: classId, teacherId, subject, dayOfWeek, periodNumber, startTime, endTime
+- Validation:
+  - Verify teacher exists and teaches the specified subject
+  - Check for scheduling conflicts
+  - Ensure class exists
+
+**Delete Period** (`DELETE /api/timetable/:id`):
+- Purpose: Remove a scheduled period (perhaps class canceled or teacher unavailable)
+
+**Bulk Upload** (optional advanced feature):
+- `POST /api/timetable/bulk`: Accept an array of periods for quick setup
+- Use case: Admin uploads entire timetable via Excel/CSV import
+
+---
+
+## Frontend User Experience
+
+### Admin Timetable Management Interface
+
+**File to Create**: `client/src/pages/admin/timetable.tsx`
+
+**Page Layout**:
+
+**Class Selector**:
+- Dropdown to select which class's timetable to view/edit
+- On selection, load that class's schedule
+
+**Grid View** (Timetable Display):
+
+**Structure**:
+```
+        | Monday  | Tuesday | Wednesday | ...
+Period 1| Physics | Math    | English   |
+        | Mr. S   | Mrs. P  | Ms. K     |
+--------|---------|---------|-----------|
+Period 2| ...     | ...     | ...       |
+```
+
+**Interactive Elements**:
+- Click on a cell → Opens a dialog to assign/edit that period
+- Dialog contains:
+  - Subject dropdown (or text input)
+  - Teacher dropdown (populated from teachers who teach this subject)
+  - Time fields (start/end)
+  - Save button → Creates/updates the timetable entry
+
+**Drag-and-Drop Enhancement** (optional, advanced):
+- Allow admin to drag a teacher's name into a cell
+- Automatically creates the period assignment
+- Libraries: react-dnd or dnd-kit
+
+**Conflict Detection**:
+- If admin tries to assign a teacher already scheduled for that time, show an error
+- Visual indicators: Highlight conflicts in red
+
+---
+
+### Teacher Dashboard: "My Schedule" View
+
+**Location**: Teacher Dashboard (existing page or new section)
+
+**Purpose**: Show teachers their weekly teaching schedule
+
+**Display Format**:
+
+**Option A**: List view
+- Grouped by day
+- Shows: Time, Class, Subject
+- Example: "Monday, 9:00 AM - 9:45 AM | Class 10-A | Physics"
+
+**Option B**: Grid view (similar to admin timetable)
+- Shows only the teacher's assigned periods
+- Empty cells for free periods
+
+**Functionality**:
+- Read-only (teachers cannot edit, only view)
+- Quick access to class details (click class name → view student roster)
+- Optional: "Mark Attendance" button for current/upcoming periods
+
+---
+
+# Module 3: Indian Academic Compliance Features
+
+## Objective
+Enhance student profiles and add examination/grading capabilities to align with CBSE/ICSE board requirements and Indian education standards.
+
+---
+
+## Student Profile Enhancement
+
+**Current State**: Basic student information (name, roll number, class)
+
+**Indian-Specific Fields to Add**:
+
+### Identity & Demographics
+
+1. **Aadhaar Number**:
+   - Purpose: Government-mandated unique identification
+   - Format: 12 digits
+   - Security: Encrypt or mask in UI (show as XXXX-XXXX-1234)
+   - Validation: Unique across all students
+
+2. **Blood Group**:
+   - Purpose: Medical emergency preparedness
+   - Options: A+, A-, B+, B-, AB+, AB-, O+, O-
+   - Display: Dropdown or radio buttons
+
+3. **Category** (Reservation Category):
+   - Purpose: Compliance with Indian reservation policies
+   - Options: General, OBC (Other Backward Classes), SC (Scheduled Caste), ST (Scheduled Tribe), EWS (Economically Weaker Section)
+   - Privacy: Sensitive information, restrict access
+   - Display: Dropdown
+
+4. **Admission Date**:
+   - Purpose: Track student tenure, generate academic history
+   - Format: DD/MM/YYYY
+   - Use: Calculate years of study, generate TC (Transfer Certificate)
+
+**Schema Update Approach**:
+- Add these fields to the existing Student schema
+- Make some fields optional initially to support existing data
+- Provide a data migration script if needed
+
+---
+
+## Examination & Marks Management System
+
+### Conceptual Framework
+
+**Indian Academic Structure**:
+Schools conduct multiple examination types throughout the year:
+- **Unit Tests**: Monthly or bi-monthly assessments
+- **Half-Yearly Exams**: Mid-academic year (October/November)
+- **Annual Exams**: End-of-year finals (March/April)
+- **Pre-Board Exams**: Practice exams for Class 10/12 board students
+
+Each exam tests multiple subjects, and students receive marks that contribute to overall grades/CGPA.
+
+---
+
+### Marks Schema Design
+
+**Schema Name**: `Marks` (or `ExamResult`, `Assessment`)
+
+**Fields**:
+
+1. **Student Reference**:
+   - `studentId`: Link to Student model
+
+2. **Subject**:
+   - `subject`: String (e.g., "Physics", "Chemistry", "Hindi")
+   - Should align with subjects taught in the student's class
+
+3. **Examination Details**:
+   - `examType`: Enum ("Unit Test 1", "Unit Test 2", "Half Yearly", "Annual", "Pre-Board")
+   - `examDate`: Date the exam was conducted (DD/MM/YYYY)
+   - `academicYear`: String (e.g., "2025-2026")
+
+4. **Scoring**:
+   - `marksObtained`: Number (what the student scored)
+   - `maxMarks`: Number (total marks possible, e.g., 100, 80, 50)
+   - `grade`: Optional (A+, A, B+, etc., calculated based on percentage)
+
+5. **Metadata**:
+   - `uploadedBy`: Teacher who entered the marks
+   - `remarks`: Optional comments (e.g., "Excellent improvement")
+
+**Validation**:
+- `marksObtained` should not exceed `maxMarks`
+- Unique constraint: A student cannot have duplicate entries for the same subject/examType combination
+
+---
+
+### API Endpoints Architecture
+
+**Upload Marks** (`POST /api/marks`):
+- Purpose: Record exam results for students
+- Request body: studentId, subject, examType, marksObtained, maxMarks
+- Authorization: Only teachers or admins can upload
+- Validation: Ensure marks are within valid range
+
+**Bulk Marks Upload** (`POST /api/marks/bulk`):
+- Purpose: Upload marks for an entire class at once
+- Request body: Array of mark entries
+- Use case: Teacher uploads results for 40 students in one request
+- Provide error handling for invalid entries
+
+**Get Student Marks** (`GET /api/marks?studentId=...`):
+- Purpose: Retrieve all exam results for a specific student
+- Response: Array of marks, grouped by exam type or subject
+- Use case: Generate report cards, show performance history
+
+**Get Class Marks** (`GET /api/marks?classId=...&examType=...`):
+- Purpose: View results for an entire class for a specific exam
+- Use case: Teacher dashboard, class performance analysis
+
+---
+
+### Report Card Generation
+
+**Conceptual Approach**:
+
+**Data Aggregation**:
+1. Fetch all marks for a student for the current academic year
+2. Calculate:
+   - Subject-wise percentages
+   - Overall percentage
+   - CGPA (if using 10-point scale)
+   - Grade per subject (based on percentage ranges)
+
+**Grading System (CBSE Standard Example)**:
+```
+91-100% → A1 (10 CGPA)
+81-90%  → A2 (9 CGPA)
+71-80%  → B1 (8 CGPA)
+61-70%  → B2 (7 CGPA)
+...
+```
+
+**Implementation Options**:
+
+**Option A**: Frontend-generated PDF
+- Use a library like `jspdf` or `react-pdf`
+- Fetch marks data via API
+- Render a formatted report card component
+- Export as PDF for download/printing
+
+**Option B**: Backend-generated PDF
+- Create an endpoint: `GET /api/reports/student/:id`
+- Use a Node.js PDF library (e.g., `pdfkit`, `puppeteer`)
+- Generate and return PDF as response
+
+**Report Card Content**:
+- School header (logo, name, address)
+- Student details (name, class, roll number, Aadhaar)
+- Subject-wise marks table (subject, marks obtained, max marks, grade)
+- Overall percentage and CGPA
+- Attendance percentage
+- Teacher remarks (optional)
+- Principal's signature (image)
+
+**UI Integration**:
+- Add a "Generate Report Card" button in Student profile or marks view
+- On click: Fetch data → Render PDF → Download
+
+---
+
+# Module 4: Supplementary Management Modules
+
+## Library Management System
+
+**Objective**: Track school library inventory, book issues, and returns.
+
+### Schema Design
+
+**Book Schema**:
+- Fields: `title`, `author`, `isbn`, `publisher`, `quantity` (total copies), `availableCopies`
+- Categories: Fiction, Non-Fiction, Textbook, Reference, etc.
+
+**IssueRecord Schema**:
+- Fields: `bookId`, `studentId`, `issueDate`, `dueDate`, `returnDate`, `status` ("Issued" or "Returned")
+- Late fee calculation: If returnDate > dueDate, calculate fine
+
+### API Endpoints
+
+- `GET /api/library/books`: List all books
+- `POST /api/library/books`: Add new book to inventory
+- `POST /api/library/issue`: Issue a book to a student
+- `POST /api/library/return`: Mark a book as returned
+
+### Frontend Interface
+
+**Admin Library Dashboard**:
+- Book inventory table with search and filters
+- "Add Book" form
+- "Issue Book" form (select student, select book, set due date)
+
+**Student Dashboard**:
+- "My Books" section showing currently issued books and due dates
+- Option to request renewals (optional feature)
+
+---
+
+## Transport Management System
+
+**Objective**: Manage school bus routes, track vehicle information, and assign students to routes.
+
+### Schema Design
+
+**BusRoute Schema**:
+- Fields: `routeNumber`, `routeName` (e.g., "Indira Nagar Route"), `vehicleNumber`, `driverName`, `driverContact`, `stops` (array of stop names)
+
+**StudentTransport Schema**:
+- Fields: `studentId`, `routeId`, `pickupStop`, `dropStop`, `monthlyFee`
+
+### API Endpoints
+
+- `GET /api/transport/routes`: List all routes
+- `POST /api/transport/routes`: Create new route
+- `PATCH /api/transport/assign`: Assign student to a route
+
+### Frontend Interface
+
+**Admin Transport Dashboard**:
+- Table of bus routes with driver details
+- "Add Route" form
+- Student assignment interface (select route, pickup/drop stop)
+
+**Parent/Student View**:
+- Display assigned bus route, driver contact
+- Show pickup time and stop location
+
+---
+
+## Notice Board / Announcements System
+
+**Objective**: Enable admins to post important notices that appear on all user dashboards.
+
+### Schema Design
+
+**Notice Schema**:
+- Fields: `title`, `content`, `category` ("General", "Exam", "Holiday", "Fee"), `postedBy` (admin userId), `postedDate`, `expiryDate`, `priority` ("High", "Medium", "Low")
+- Targeting: `audience` (array: ["student", "teacher", "parent"])
+
+### API Endpoints
+
+- `GET /api/notices`: Fetch all active notices (filter by audience)
+- `POST /api/notices`: Create new notice (admin only)
+- `DELETE /api/notices/:id`: Remove notice
+
+### Frontend Interface
+
+**Admin Dashboard**:
+- "Post Notice" button → Opens form (title, content, category, audience, expiry)
+- Table of posted notices with edit/delete actions
+
+**Student/Teacher Dashboard**:
+- Notices section (card or list view)
+- Display title, content, date
+- Color-coded by priority (red for high priority)
+- Dismissible notices (mark as read, store in user preferences)
+
+---
+
+# Implementation Guidelines
+
+## Development Sequence
+
+### Phase 1 (Priority): Foundation & Localization
+1. ✅ Implement `/api/analytics` endpoint
+2. ✅ Apply currency formatting (₹) across all financial displays
+3. ✅ Update phone number validation (+91 format)
+4. ✅ Standardize date format (DD/MM/YYYY)
+
+**Why First?**
+- These are foundational fixes that affect all modules
+- Dashboard must work before adding more features
+- Localization is easier to implement early rather than retrofitting
+
+---
+
+### Phase 2: Teacher & Timetable
+1. ✅ Extend teacher profiles with HR fields
+2. ✅ Implement salary management and payroll tracking
+3. ✅ Create timetable schema and scheduling API
+4. ✅ Build admin timetable interface
+5. ✅ Add "My Schedule" view to teacher dashboard
+
+**Why Second?**
+- Teachers are core to operations (more critical than library/transport)
+- Timetable is foundational for attendance and class management
+- Dependencies: Students and classes already exist
+
+---
+
+### Phase 3: Academic Compliance
+1. ✅ Enhance student profiles (Aadhaar, blood group, category)
+2. ✅ Implement marks schema and exam management
+3. ✅ Build marks upload interface for teachers
+4. ✅ Create report card generation system
+
+**Why Third?**
+- Builds on existing student data
+- Requires timetable context (which subjects are taught)
+- Critical for academic operations but not blocking other features
+
+---
+
+### Phase 4: Supplementary Modules
+1. ✅ Library management (books and issue tracking)
+2. ✅ Transport management (routes and student assignment)
+3. ✅ Notice board system
+
+**Why Last?**
+- These are "nice-to-have" features, not core operations
+- Can be developed independently without blocking other work
+- Easier to add once core system is stable
+
+---
+
+## Technical Implementation Guidelines
+
+### Authentication Preservation
+
+**Critical Rule**: Do NOT modify existing authentication logic
+
+**Files to Avoid**:
+- `server/auth.ts` (or middleware)
+- `client/src/hooks/use-auth.ts` (login/logout logic)
+- JWT verification middleware
+
+**What You Can Do**:
+- Add new protected routes (ensure they use existing auth middleware)
+- Add role checks for new endpoints (admin-only, teacher-only)
+
+---
+
+### API Request Pattern
+
+**Use the Existing Request Function**:
+All frontend API calls should use the `apiRequest` function (or equivalent) from `client/src/lib/queryClient.ts`
+
+**Why?**
+- Ensures JWT token is automatically attached to headers
+- Centralizes error handling
+- Maintains consistency across all API calls
+
+**Example**:
+```typescript
+// Good ✅
+const response = await apiRequest('/api/teachers', { method: 'POST', body: data });
+
+// Bad ❌ (bypasses auth headers)
+const response = await fetch('/api/teachers', { method: 'POST', body: data });
+```
+
+---
+
+### Data Fetching with TanStack Query
+
+**Query Key Debugging**:
+If data doesn't appear on the dashboard after implementation:
+
+**Check**:
+1. **Query Key**: Ensure it matches between queries and mutations
+2. **Cache Invalidation**: After mutations, invalidate the correct query key
+3. **Network Tab**: Verify the API is returning expected data
+4. **React Query DevTools**: Use to inspect cache state
+
+**Example**:
+```typescript
+// Query
+const { data } = useQuery({ queryKey: ['teachers'], queryFn: fetchTeachers });
+
+// Mutation
+const mutation = useMutation({
+  mutationFn: createTeacher,
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['teachers'] }); // Must match!
+  }
+});
+```
+
+---
+
+### Form Validation Pattern
+
+**Use Zod for All Forms**:
+- Define schemas for each form
+- Validate Indian-specific fields (PAN, Aadhaar, phone)
+- Integrate with React Hook Form
+
+**Example Structure**:
+```typescript
+const teacherSchema = z.object({
+  name: z.string().min(1, "Name required"),
+  panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]$/, "Invalid PAN"),
+  aadhaarNumber: z.string().length(12, "Aadhaar must be 12 digits"),
+  phoneNumber: z.string().regex(/^\+91[6-9]\d{9}$/, "Invalid mobile"),
+  salary: z.number().positive("Salary must be positive"),
+});
+```
+
+---
+
+## Testing & Verification Checklist
+
+### After Each Phase
+
+**Backend**:
+- ✅ All new routes return expected data (test with Postman)
+- ✅ Validation works (try submitting invalid data)
+- ✅ Authorization is enforced (non-admins cannot access admin routes)
+- ✅ Database queries are efficient (no N+1 problems)
+
+**Frontend**:
+- ✅ Forms submit successfully and show success feedback
+- ✅ Tables display data correctly with proper formatting (₹, DD/MM/YYYY)
+- ✅ Loading states appear while fetching data
+- ✅ Error messages are user-friendly
+- ✅ Responsive design works on tablets
+
+**Integration**:
+- ✅ Dashboard metrics update in real-time after data changes
+- ✅ Query cache invalidation triggers automatic refetches
+- ✅ No console errors or warnings
+- ✅ JWT tokens are sent with all protected requests
+
+---
+
+## Success Criteria
+
+**When Complete, the System Should**:
+
+**Localization**:
+- ✅ Display all currency as ₹ with Indian number formatting
+- ✅ Accept only +91 phone numbers with 10 digits
+- ✅ Show all dates in DD/MM/YYYY format
+
+**Teacher Management**:
+- ✅ Admin can add teachers with PAN, Aadhaar, qualifications
+- ✅ Admin can pay monthly salaries and track payment history
+- ✅ Salary status visible on teacher roster
+
+**Timetable**:
+- ✅ Admin can assign teachers to class/subject/time slots
+- ✅ Visual grid shows complete weekly schedule per class
+- ✅ Teachers see their personal schedule on their dashboard
+- ✅ System prevents double-booking conflicts
+
+**Academic Compliance**:
+- ✅ Student profiles include Aadhaar, blood group, category
+- ✅ Teachers upload exam marks with validation
+- ✅ Report cards generate with CGPA calculations
+- ✅ Marks history is accessible per student
+
+**Supplementary Modules**:
+- ✅ Library tracks books and issue/return status
+- ✅ Transport system assigns students to bus routes
+- ✅ Notice board displays announcements to relevant audiences
+
+---
