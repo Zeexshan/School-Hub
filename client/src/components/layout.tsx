@@ -31,7 +31,8 @@ export function Layout({ children }: LayoutProps) {
       return [
         { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { href: "/admin/students", label: "Students", icon: Users },
-        { href: "/admin/classes", label: "Classes", icon: GraduationCap },
+        { href: "/admin/teachers", label: "Teachers", icon: GraduationCap },
+        { href: "/admin/classes", label: "Classes", icon: BookOpen },
         { href: "/admin/fees", label: "Fees", icon: CreditCard },
       ];
     }

@@ -17,6 +17,8 @@ import {
   type InsertSubmission,
   type Fee,
   type InsertFee,
+  type TeacherProfile,
+  type InsertTeacherProfile,
 } from "@shared/schema";
 
 interface UserDocument extends Document {
@@ -90,6 +92,13 @@ interface FeeDocument extends Document {
   paidDate?: Date;
 }
 
+interface TeacherProfileDocument extends Document {
+  userId: string;
+  salary: number;
+  subjectSpecialization: string;
+  joinDate: string;
+}
+
 const UserSchema = new Schema<UserDocument>({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -161,6 +170,13 @@ const FeeSchema = new Schema<FeeDocument>({
   paidDate: { type: Date },
 });
 
+const TeacherProfileSchema = new Schema<TeacherProfileDocument>({
+  userId: { type: String, required: true, unique: true },
+  salary: { type: Number, required: true },
+  subjectSpecialization: { type: String, required: true },
+  joinDate: { type: String, required: true },
+});
+
 AttendanceSchema.index({ date: 1, classId: 1, sectionId: 1 });
 AttendanceSchema.index({ studentId: 1, date: 1 });
 
@@ -172,6 +188,7 @@ const AttendanceModel = mongoose.model<AttendanceDocument>("Attendance", Attenda
 const AssignmentModel = mongoose.model<AssignmentDocument>("Assignment", AssignmentSchema);
 const SubmissionModel = mongoose.model<SubmissionDocument>("Submission", SubmissionSchema);
 const FeeModel = mongoose.model<FeeDocument>("Fee", FeeSchema);
+const TeacherProfileModel = mongoose.model<TeacherProfileDocument>("TeacherProfile", TeacherProfileSchema);
 
 function docToUser(doc: UserDocument): User {
   return {
@@ -268,6 +285,16 @@ function docToFee(doc: FeeDocument): Fee {
   };
 }
 
+function docToTeacherProfile(doc: TeacherProfileDocument): TeacherProfile {
+  return {
+    id: doc._id.toString(),
+    userId: doc.userId,
+    salary: doc.salary,
+    subjectSpecialization: doc.subjectSpecialization,
+    joinDate: doc.joinDate,
+  };
+}
+
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -317,6 +344,16 @@ export interface IStorage {
   getFeesByStudent(studentId: string): Promise<Fee[]>;
   updateFeeStatus(id: string, status: string, paidDate?: Date): Promise<Fee | undefined>;
   getAllFees(): Promise<Fee[]>;
+  
+  // Teacher Profile methods
+  createTeacherProfile(profileData: InsertTeacherProfile): Promise<TeacherProfile>;
+  getTeacherProfileByUserId(userId: string): Promise<TeacherProfile | undefined>;
+  updateTeacherProfile(userId: string, data: Partial<InsertTeacherProfile>): Promise<TeacherProfile | undefined>;
+  getAllTeacherProfiles(): Promise<TeacherProfile[]>;
+  
+  // Analytics methods
+  getMonthlyRevenue(): Promise<number>;
+  getTodayAttendancePercentage(): Promise<number>;
 }
 
 class MongoStorage implements IStorage {
@@ -538,6 +575,53 @@ class MongoStorage implements IStorage {
   async getAllFees(): Promise<Fee[]> {
     const docs = await FeeModel.find();
     return docs.map(docToFee);
+  }
+
+  async createTeacherProfile(profileData: InsertTeacherProfile): Promise<TeacherProfile> {
+    const doc = await TeacherProfileModel.create(profileData);
+    return docToTeacherProfile(doc);
+  }
+
+  async getTeacherProfileByUserId(userId: string): Promise<TeacherProfile | undefined> {
+    const doc = await TeacherProfileModel.findOne({ userId });
+    return doc ? docToTeacherProfile(doc) : undefined;
+  }
+
+  async updateTeacherProfile(userId: string, data: Partial<InsertTeacherProfile>): Promise<TeacherProfile | undefined> {
+    const doc = await TeacherProfileModel.findOneAndUpdate({ userId }, data, { new: true });
+    return doc ? docToTeacherProfile(doc) : undefined;
+  }
+
+  async getAllTeacherProfiles(): Promise<TeacherProfile[]> {
+    const docs = await TeacherProfileModel.find();
+    return docs.map(docToTeacherProfile);
+  }
+
+  async getMonthlyRevenue(): Promise<number> {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    
+    const fees = await FeeModel.find({
+      status: "Cleared",
+      paidDate: { $gte: startOfMonth, $lte: endOfMonth }
+    });
+    
+    return fees.reduce((sum, fee) => sum + fee.amount, 0);
+  }
+
+  async getTodayAttendancePercentage(): Promise<number> {
+    const today = new Date().toISOString().split('T')[0];
+    const totalStudents = await StudentModel.countDocuments();
+    
+    if (totalStudents === 0) return 0;
+    
+    const presentCount = await AttendanceModel.countDocuments({
+      date: today,
+      status: "Present"
+    });
+    
+    return Math.round((presentCount / totalStudents) * 100);
   }
 }
 

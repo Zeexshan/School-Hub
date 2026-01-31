@@ -16,6 +16,7 @@ import {
   insertSubmissionSchema,
   gradeSubmissionSchema,
   insertFeeSchema,
+  insertTeacherProfileSchema,
 } from "@shared/schema";
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET;
@@ -866,6 +867,144 @@ export async function registerRoutes(
         return res.json(updated);
       } catch (error) {
         console.error("Pay fee error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  // Analytics endpoint
+  app.get(
+    "/api/analytics",
+    authenticateToken,
+    requireRole("admin"),
+    async (_req: Request, res: Response) => {
+      try {
+        const students = await storage.getAllStudents();
+        const teachers = await storage.getUsersByRole("teacher");
+        const monthlyRevenue = await storage.getMonthlyRevenue();
+        const todayAttendance = await storage.getTodayAttendancePercentage();
+
+        return res.json({
+          totalStudents: students.length,
+          totalTeachers: teachers.length,
+          monthlyRevenue,
+          todayAttendance,
+        });
+      } catch (error) {
+        console.error("Analytics error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  // Teacher routes
+  app.get(
+    "/api/teachers",
+    authenticateToken,
+    requireRole("admin"),
+    async (_req: Request, res: Response) => {
+      try {
+        const teachers = await storage.getUsersByRole("teacher");
+        const profiles = await storage.getAllTeacherProfiles();
+        
+        const teachersWithProfiles = teachers.map((teacher) => {
+          const { password, ...teacherWithoutPassword } = teacher;
+          const profile = profiles.find((p) => p.userId === teacher.id);
+          return { ...teacherWithoutPassword, profile };
+        });
+        
+        return res.json(teachersWithProfiles);
+      } catch (error) {
+        console.error("Get teachers error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/teachers",
+    authenticateToken,
+    requireRole("admin"),
+    async (req: Request, res: Response) => {
+      try {
+        const { name, email, username, password, salary, subjectSpecialization } = req.body;
+        
+        // Validate user data
+        const userResult = insertUserSchema.safeParse({
+          username,
+          password,
+          name,
+          email,
+          role: "teacher",
+        });
+        
+        if (!userResult.success) {
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: userResult.error.flatten(),
+          });
+        }
+
+        // Check existing email/username
+        const existingEmail = await storage.getUserByEmail(email);
+        if (existingEmail) {
+          return res.status(409).json({ message: "Email already in use" });
+        }
+
+        const existingUsername = await storage.getUserByUsername(username);
+        if (existingUsername) {
+          return res.status(409).json({ message: "Username already in use" });
+        }
+
+        // Create user
+        const user = await storage.createUser(userResult.data);
+        
+        // Create teacher profile
+        const profileResult = insertTeacherProfileSchema.safeParse({
+          userId: user.id,
+          salary,
+          subjectSpecialization,
+          joinDate: new Date().toISOString().split('T')[0],
+        });
+        
+        if (!profileResult.success) {
+          return res.status(400).json({
+            message: "Profile validation failed",
+            errors: profileResult.error.flatten(),
+          });
+        }
+
+        const profile = await storage.createTeacherProfile(profileResult.data);
+        
+        const { password: _, ...userWithoutPassword } = user;
+        return res.status(201).json({ ...userWithoutPassword, profile });
+      } catch (error) {
+        console.error("Create teacher error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.patch(
+    "/api/teachers/:id",
+    authenticateToken,
+    requireRole("admin"),
+    async (req: Request, res: Response) => {
+      try {
+        const { salary, subjectSpecialization } = req.body;
+        
+        const updated = await storage.updateTeacherProfile(req.params.id, {
+          salary,
+          subjectSpecialization,
+        });
+        
+        if (!updated) {
+          return res.status(404).json({ message: "Teacher profile not found" });
+        }
+        
+        return res.json(updated);
+      } catch (error) {
+        console.error("Update teacher error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
     },
