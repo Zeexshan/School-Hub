@@ -126,11 +126,25 @@ export const insertFeeSchema = z.object({
 export type InsertFee = z.infer<typeof insertFeeSchema>;
 export type Fee = InsertFee & { id: string; paidDate?: Date };
 
+// --- Teacher Profile ---
+export const insertTeacherProfileSchema = z.object({
+  userId: z.string(),
+  salary: z.number().positive(),
+  subjectSpecialization: z.string().min(1, "Subject is required"),
+  joinDate: z.string(),
+});
+export type InsertTeacherProfile = z.infer<typeof insertTeacherProfileSchema>;
+export type TeacherProfile = InsertTeacherProfile & { id: string };
+
 // --- Types for Frontend ---
 export type StudentWithDetails = Student & { 
   user: User; 
   class: Class;
   section: Section;
+};
+
+export type TeacherWithProfile = User & {
+  profile?: TeacherProfile;
 };
 
 export type AuthResponse = {

@@ -32,7 +32,7 @@ export function useMarkFeePaid() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await apiRequest("PATCH", `/api/fees/${id}`, { status: "Cleared", paidDate: new Date().toISOString() });
+      const res = await apiRequest("PATCH", `/api/fees/${id}/pay`, {});
       return res.json();
     },
     onSuccess: () => {
