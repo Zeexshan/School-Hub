@@ -130,11 +130,30 @@ export type Fee = InsertFee & { id: string; paidDate?: Date };
 export const insertTeacherProfileSchema = z.object({
   userId: z.string(),
   salary: z.number().positive(),
-  subjectSpecialization: z.string().min(1, "Subject is required"),
+  panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format"),
+  aadhaarNumber: z.string().length(12, "Aadhaar must be 12 digits"),
+  qualification: z.string().min(1, "Qualification is required"),
+  subjectSpecialization: z.array(z.string()).min(1, "At least one subject is required"),
   joinDate: z.string(),
+  designation: z.string().min(1, "Designation is required"),
+  employeeId: z.string().min(1, "Employee ID is required"),
 });
 export type InsertTeacherProfile = z.infer<typeof insertTeacherProfileSchema>;
-export type TeacherProfile = InsertTeacherProfile & { id: string };
+export type TeacherProfile = InsertTeacherProfile & { id: string; salaryHistory: any[] };
+
+// --- Timetable ---
+export const insertTimetableSchema = z.object({
+  classId: z.string(),
+  sectionId: z.string(),
+  teacherId: z.string(),
+  subject: z.string(),
+  dayOfWeek: z.number().min(1).max(6), // 1=Mon, 6=Sat
+  periodNumber: z.number().min(1).max(8),
+  startTime: z.string(),
+  endTime: z.string(),
+});
+export type InsertTimetable = z.infer<typeof insertTimetableSchema>;
+export type Timetable = InsertTimetable & { id: string };
 
 // --- Types for Frontend ---
 export type StudentWithDetails = Student & { 

@@ -17,6 +17,7 @@ import {
   gradeSubmissionSchema,
   insertFeeSchema,
   insertTeacherProfileSchema,
+  insertTimetableSchema,
 } from "@shared/schema";
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET;
