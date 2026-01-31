@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Student, InsertStudent } from "@shared/schema";
 
 export function useStudents() {
@@ -13,15 +14,7 @@ export function useCreateStudent() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (data: InsertStudent) => {
-      const res = await fetch("/api/students", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to create student");
-      }
+      const res = await apiRequest("POST", "/api/students", data);
       return res.json();
     },
     onSuccess: () => {
@@ -39,15 +32,7 @@ export function useUpdateStudent() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertStudent> }) => {
-      const res = await fetch(`/api/students/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to update student");
-      }
+      const res = await apiRequest("PATCH", `/api/students/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
@@ -65,11 +50,7 @@ export function useDeleteStudent() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/students/${id}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 204) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to delete student");
-      }
+      await apiRequest("DELETE", `/api/students/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/students"] });

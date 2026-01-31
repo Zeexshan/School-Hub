@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Fee, InsertFee } from "@shared/schema";
 
 export function useFees() {
@@ -13,15 +14,7 @@ export function useCreateFee() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (data: InsertFee) => {
-      const res = await fetch("/api/fees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to create fee");
-      }
+      const res = await apiRequest("POST", "/api/fees", data);
       return res.json();
     },
     onSuccess: () => {
@@ -39,15 +32,7 @@ export function useMarkFeePaid() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/fees/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Cleared", paidDate: new Date().toISOString() }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to update fee status");
-      }
+      const res = await apiRequest("PATCH", `/api/fees/${id}`, { status: "Cleared", paidDate: new Date().toISOString() });
       return res.json();
     },
     onSuccess: () => {

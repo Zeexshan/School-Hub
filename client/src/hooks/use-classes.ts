@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Class, InsertClass, Section, InsertSection } from "@shared/schema";
 
 export function useClasses() {
@@ -13,15 +14,7 @@ export function useCreateClass() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (data: InsertClass) => {
-      const res = await fetch("/api/classes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to create class");
-      }
+      const res = await apiRequest("POST", "/api/classes", data);
       return res.json();
     },
     onSuccess: () => {
@@ -39,15 +32,7 @@ export function useUpdateClass() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertClass> }) => {
-      const res = await fetch(`/api/classes/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to update class");
-      }
+      const res = await apiRequest("PATCH", `/api/classes/${id}`, data);
       return res.json();
     },
     onSuccess: () => {
@@ -65,11 +50,7 @@ export function useDeleteClass() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/classes/${id}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 204) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to delete class");
-      }
+      await apiRequest("DELETE", `/api/classes/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/classes"] });
@@ -93,15 +74,7 @@ export function useCreateSection() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async (data: InsertSection) => {
-      const res = await fetch("/api/sections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to create section");
-      }
+      const res = await apiRequest("POST", "/api/sections", data);
       return res.json();
     },
     onSuccess: (_, variables) => {
@@ -119,11 +92,7 @@ export function useDeleteSection() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async ({ id, classId }: { id: string; classId: string }) => {
-      const res = await fetch(`/api/sections/${id}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 204) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to delete section");
-      }
+      await apiRequest("DELETE", `/api/sections/${id}`);
       return classId;
     },
     onSuccess: (classId) => {
