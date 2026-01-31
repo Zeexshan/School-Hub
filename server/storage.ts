@@ -412,9 +412,53 @@ export interface IStorage {
   paySalary(userId: string, month: string, amount: number): Promise<TeacherProfile | undefined>;
   getMonthlyRevenue(): Promise<number>;
   getTodayAttendancePercentage(): Promise<number>;
+  getTimetableByTeacherPeriod(teacherId: string, dayOfWeek: number, periodNumber: number): Promise<Timetable | undefined>;
+  createTimetable(timetableData: InsertTimetable): Promise<Timetable>;
 }
 
 class MongoStorage implements IStorage {
+  async getTimetableByTeacherPeriod(teacherId: string, dayOfWeek: number, periodNumber: number): Promise<Timetable | undefined> {
+    const doc = await TimetableModel.findOne({ teacherId, dayOfWeek, periodNumber });
+    return doc ? docToTimetable(doc) : undefined;
+  }
+
+  async createTimetable(timetableData: InsertTimetable): Promise<Timetable> {
+    const doc = await TimetableModel.create(timetableData);
+    return docToTimetable(doc);
+  }
+
+  async getMonthlyRevenue(): Promise<number> {
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const result = await FeeModel.aggregate([
+      {
+        $match: {
+          status: "Cleared",
+          paidDate: { $gte: startOfMonth }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" }
+        }
+      }
+    ]);
+
+    return result.length > 0 ? result[0].total : 0;
+  }
+
+  async getTodayAttendancePercentage(): Promise<number> {
+    const today = new Date().toISOString().split('T')[0];
+    const records = await AttendanceModel.find({ date: today });
+    
+    if (records.length === 0) return 0;
+    
+    const presentCount = records.filter(r => r.status === "Present").length;
+    return (presentCount / records.length) * 100;
+  }
   async getUser(id: string): Promise<User | undefined> {
     const doc = await UserModel.findById(id);
     return doc ? docToUser(doc) : undefined;

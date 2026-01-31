@@ -736,16 +736,57 @@ export async function registerRoutes(
   );
 
   app.get(
-    "/api/assignments/:assignmentId/submissions",
+    "/api/analytics",
     authenticateToken,
+    requireRole("admin"),
+    async (_req: Request, res: Response) => {
+      try {
+        const students = await storage.getAllStudents();
+        const teachers = await storage.getUsersByRole("teacher");
+        const monthlyRevenue = await storage.getMonthlyRevenue();
+        const attendancePercentage = await storage.getTodayAttendancePercentage();
+
+        return res.json({
+          totalStudents: students.length,
+          totalTeachers: teachers.length,
+          monthlyRevenue,
+          attendancePercentage,
+        });
+      } catch (error) {
+        console.error("Get analytics error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.post(
+    "/api/timetable",
+    authenticateToken,
+    requireRole("admin"),
     async (req: Request, res: Response) => {
       try {
-        const submissions = await storage.getSubmissionsByAssignment(
-          req.params.assignmentId,
+        const result = insertTimetableSchema.safeParse(req.body);
+        if (!result.success) {
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
+        }
+
+        const existing = await storage.getTimetableByTeacherPeriod(
+          result.data.teacherId,
+          result.data.dayOfWeek,
+          result.data.periodNumber,
         );
-        return res.json(submissions);
+
+        if (existing) {
+          return res.status(400).json({ message: "Teacher is already busy during this period." });
+        }
+
+        const timetable = await storage.createTimetable(result.data);
+        return res.status(201).json(timetable);
       } catch (error) {
-        console.error("Get submissions error:", error);
+        console.error("Create timetable error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
     },
