@@ -1,73 +1,137 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, buildUrl, type InsertClass, type InsertSection } from "@shared/routes";
+import { useToast } from "@/hooks/use-toast";
+import type { Class, InsertClass, Section, InsertSection } from "@shared/schema";
 
 export function useClasses() {
-  return useQuery({
-    queryKey: [api.classes.list.path],
-    queryFn: async () => {
-      const res = await fetch(api.classes.list.path);
-      if (!res.ok) throw new Error("Failed to fetch classes");
-      return api.classes.list.responses[200].parse(await res.json());
-    },
-  });
-}
-
-export function useClass(id: string) {
-  return useQuery({
-    queryKey: [api.classes.get.path, id],
-    queryFn: async () => {
-      const url = buildUrl(api.classes.get.path, { id });
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch class");
-      return api.classes.get.responses[200].parse(await res.json());
-    },
-    enabled: !!id,
+  return useQuery<Class[]>({
+    queryKey: ["/api/classes"],
   });
 }
 
 export function useCreateClass() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: async (data: InsertClass) => {
-      const res = await fetch(api.classes.create.path, {
-        method: api.classes.create.method,
+      const res = await fetch("/api/classes", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create class");
-      return api.classes.create.responses[201].parse(await res.json());
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to create class");
+      }
+      return res.json();
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [api.classes.list.path] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/classes"] });
+      toast({ title: "Success", description: "Class created successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 }
 
-export function useSections(classId: string) {
-  return useQuery({
-    queryKey: [api.sections.list.path, classId],
-    queryFn: async () => {
-      const url = buildUrl(api.sections.list.path, { classId });
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch sections");
-      return api.sections.list.responses[200].parse(await res.json());
+export function useUpdateClass() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<InsertClass> }) => {
+      const res = await fetch(`/api/classes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to update class");
+      }
+      return res.json();
     },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/classes"] });
+      toast({ title: "Success", description: "Class updated successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteClass() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/classes/${id}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to delete class");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/classes"] });
+      toast({ title: "Success", description: "Class deleted successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useSections(classId: string | null) {
+  return useQuery<Section[]>({
+    queryKey: ["/api/classes", classId, "sections"],
     enabled: !!classId,
   });
 }
 
 export function useCreateSection() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: async (data: InsertSection) => {
-      const res = await fetch(api.sections.create.path, {
-        method: api.sections.create.method,
+      const res = await fetch("/api/sections", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create section");
-      return api.sections.create.responses[201].parse(await res.json());
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to create section");
+      }
+      return res.json();
     },
-    onSuccess: (_, variables) => queryClient.invalidateQueries({ 
-      queryKey: [api.sections.list.path, variables.classId] 
-    }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/classes", variables.classId, "sections"] });
+      toast({ title: "Success", description: "Section created successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+}
+
+export function useDeleteSection() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: async ({ id, classId }: { id: string; classId: string }) => {
+      const res = await fetch(`/api/sections/${id}`, { method: "DELETE" });
+      if (!res.ok && res.status !== 204) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to delete section");
+      }
+      return classId;
+    },
+    onSuccess: (classId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/classes", classId, "sections"] });
+      toast({ title: "Success", description: "Section deleted successfully" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
   });
 }
