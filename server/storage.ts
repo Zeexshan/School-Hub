@@ -417,16 +417,6 @@ export interface IStorage {
 }
 
 class MongoStorage implements IStorage {
-  async getTimetableByTeacherPeriod(teacherId: string, dayOfWeek: number, periodNumber: number): Promise<Timetable | undefined> {
-    const doc = await TimetableModel.findOne({ teacherId, dayOfWeek, periodNumber });
-    return doc ? docToTimetable(doc) : undefined;
-  }
-
-  async createTimetable(timetableData: InsertTimetable): Promise<Timetable> {
-    const doc = await TimetableModel.create(timetableData);
-    return docToTimetable(doc);
-  }
-
   async getMonthlyRevenue(): Promise<number> {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -458,6 +448,16 @@ class MongoStorage implements IStorage {
     
     const presentCount = records.filter(r => r.status === "Present").length;
     return (presentCount / records.length) * 100;
+  }
+
+  async getTimetableByTeacherPeriod(teacherId: string, dayOfWeek: number, periodNumber: number): Promise<Timetable | undefined> {
+    const doc = await TimetableModel.findOne({ teacherId, dayOfWeek, periodNumber });
+    return doc ? docToTimetable(doc) : undefined;
+  }
+
+  async createTimetable(timetableData: InsertTimetable): Promise<Timetable> {
+    const doc = await TimetableModel.create(timetableData);
+    return docToTimetable(doc);
   }
   async getUser(id: string): Promise<User | undefined> {
     const doc = await UserModel.findById(id);
