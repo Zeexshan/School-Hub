@@ -1,0 +1,48 @@
+MASTER TASK: Fix Bugs & Implement Teacher Module
+
+Context:
+I have migrated this code to a new Replit. The backend logic is mostly there, but there are broken routes and missing features.
+
+Part 1: CRITICAL BUG FIXES (Do this first)
+
+1. Fix Fee Payment URL Mismatch:
+   - In `client/src/hooks/use-fees.ts`, the `useMarkFeePaid` mutation is sending a PATCH request to `/api/fees/${id}`.
+   - CHANGE IT TO: `/api/fees/${id}/pay` (This matches the backend route in server/routes.ts).
+
+2. Implement Missing Analytics Endpoint:
+   - The Admin Dashboard (`dashboard.tsx`) tries to fetch data, but the route is missing.
+   - In `server/routes.ts`, add a new route: `GET /api/analytics`.
+   - It should return a JSON object:
+     {
+       totalStudents: (count from storage.getAllStudents),
+       totalTeachers: (count from storage.getUsersByRole("teacher")),
+       monthlyRevenue: (sum of all 'Cleared' fees for current month),
+       todayAttendance: (calculate percentage of 'Present' vs total students for today)
+     }
+   - Update `server/storage.ts` if helper methods are needed (e.g., `getMonthlyRevenue`).
+
+Part 2: NEW FEATURE - Teacher Management Module
+
+1. Backend (`server/storage.ts` & `server/routes.ts`):
+   - We need to store extra teacher details (Salary, Subject, Join Date).
+   - Create a `TeacherProfile` schema linking to `userId` (User Model).
+   - Fields: `userId`, `salary` (number), `subjectSpecialization` (string), `joinDate`.
+   - Add Routes:
+     - `GET /api/teachers`: Returns users with role='teacher' JOINED with their profile data.
+     - `POST /api/teachers`: Creates a User (role='teacher') AND a TeacherProfile.
+     - `PATCH /api/teachers/:id`: Updates profile/salary.
+
+2. Frontend (`client/src/pages/admin/teachers.tsx`):
+   - Create this new page based on the design of `students.tsx`.
+   - **Table Columns:** Name, Email, Subject, Salary (formatted currency), Join Date.
+   - **Add Button:** Opens a Dialog to register a new teacher.
+     - Inputs: Name, Email, Password, Subject, Salary.
+   - Register this page in `client/src/App.tsx` under `/admin/teachers`.
+
+3. Navigation:
+   - Update `client/src/components/layout.tsx`: Add a "Teachers" link to the sidebar (use the `GraduationCap` icon).
+
+EXECUTION ORDER:
+1. Fix the Fee URL.
+2. Implement Analytics API (so Dashboard works).
+3. Build the Teacher Module (Backend + Frontend).
