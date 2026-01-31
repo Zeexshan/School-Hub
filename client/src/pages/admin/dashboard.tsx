@@ -3,6 +3,7 @@ import { StatsCard } from "@/components/stats-card";
 import { useAnalytics } from "@/hooks/use-analytics";
 import { Users, GraduationCap, DollarSign, Calendar, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/indian-utils";
 import { 
   Area, 
   AreaChart, 
@@ -52,7 +53,7 @@ export default function AdminDashboard() {
           />
           <StatsCard
             title="Monthly Revenue"
-            value={`$${analytics?.monthlyRevenue || 0}`}
+            value={formatCurrency(analytics?.monthlyRevenue || 0)}
             icon={DollarSign}
             description="Fees collected this month"
           />
