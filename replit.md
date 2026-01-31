@@ -73,6 +73,18 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### 2026-01-31: Frontend ERP Module Implementation
+- Extended CRUD hooks in `client/src/hooks/`:
+  - `use-classes.ts` - Full CRUD with create, update, delete mutations for classes and sections
+  - `use-students.ts` - Full CRUD with student enrollment and update functionality
+  - `use-fees.ts` - Fee creation and mark-as-paid functionality
+- Implemented admin pages:
+  - `client/src/pages/admin/classes.tsx` - Class management with sections dialog, add/edit/delete
+  - `client/src/pages/admin/students.tsx` - Student enrollment with class/section selection, guardian info
+  - `client/src/pages/admin/fees.tsx` - Fee records with status filtering, payment tracking, summary cards
+- All pages include loading states, error handling, and toast notifications
+- Student creation flow: Creates user account first via /api/auth/register, then student record
+
 ### 2026-01-28: Backend Authentication System Implementation
 - Created `server/db.ts` for MongoDB Atlas connection management
 - Rewrote `server/storage.ts` replacing MemStorage with Mongoose-based persistence
