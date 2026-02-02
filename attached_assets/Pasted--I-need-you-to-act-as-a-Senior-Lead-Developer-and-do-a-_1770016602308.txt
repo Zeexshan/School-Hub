@@ -1,0 +1,28 @@
+"I need you to act as a Senior Lead Developer and do a full repair and feature implementation on this project. The current state is broken, and I am blocked on multiple fronts. Please process this request in two phases:
+
+Phase 1: Critical Bug Fixes (Do this first)
+
+Fix the 'DOCTYPE' & Dashboard Error: I am getting a DOCTYPE error and the Dashboard is not rendering (it's likely a blank screen or a routing issue). Check the entry point (index.html/main.jsx) and the routing logic.
+
+Fix Login Systems: Both Student and Teacher logins are throwing errors. Debug the authentication flow and ensure the backend is returning the correct tokens/responses.
+
+Fix Teacher Validation: I cannot add a teacher because the 'PAN Number' validation is too strict. Please relax this regex immediately so I can add test data without errors.
+
+Phase 2: Implement the 'Timetable & Substitution' Module Once the bugs are fixed, I need you to build a specific feature for Class Management that I have described before:
+
+Structure: Create a system where I can define a Class (e.g., 'Class 10th A') and assign it a specific number of 'Periods' (e.g., 5 periods a day).
+
+Time Slots: Allow me to set the time for each period (e.g., Period 1 is 8:00 AM - 9:00 AM).
+
+Teacher Assignment: I must be able to assign a specific teacher (e.g., 'Rajesh Kumar') to a specific period.
+
+Substitution Logic (Crucial): Create a function that checks attendance. If the assigned teacher (Rajesh Kumar) is marked 'Absent', the system should automatically query the database for other teachers who differ in subject but are 'Available' (free) during that specific time slot (8-9 AM) and suggest them as substitutes.
+
+Please analyze the current file structure, fix the Phase 1 bugs so the app actually loads, and then implement the Phase 2 logic. Don't ask me to edit files manually; write the code."
+
+What this prompt does:
+Prioritizes the Crash: It tells Replit that the "DOCTYPE" and "Dashboard" issues are blockers. Replit often gets confused if it tries to add features to a crashing app, so we force it to fix the foundation first.
+
+Defines the Logic: It explicitly explains the "If Teacher Absent -> Find Free Teacher in Time Slot" logic so Replit knows exactly how to build the database query.
+
+Fixes the PAN: It includes the validation fix as a small part of the larger repair.
