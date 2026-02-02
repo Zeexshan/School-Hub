@@ -483,13 +483,13 @@ export interface IStorage {
     periodNumber: number,
   ): Promise<Timetable | undefined>;
   createTimetable(timetableData: InsertTimetable): Promise<Timetable>;
-  getTimetableByClass(classId: string, sectionId: string): Promise<Timetable[]>;
+  getTimetableByClass(classId: string, sectionId?: string): Promise<Timetable[]>;
   getTimetableByTeacher(teacherId: string): Promise<Timetable[]>;
   deleteTimetable(id: string): Promise<boolean>;
 }
 
 // --- IMPLEMENTATION ---
-class MongoStorage implements IStorage {
+export class MongoStorage implements IStorage {
   async getMonthlyRevenue(): Promise<number> {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -524,9 +524,26 @@ class MongoStorage implements IStorage {
     return doc ? docToTimetable(doc) : undefined;
   }
 
+  async getTimetableByTeacher(teacherId: string): Promise<Timetable[]> {
+    const docs = await TimetableModel.find({ teacherId }).sort({ dayOfWeek: 1, periodNumber: 1 });
+    return docs.map(docToTimetable);
+  }
+
+  async getTimetableByClass(classId: string, sectionId?: string): Promise<Timetable[]> {
+    const query: any = { classId };
+    if (sectionId) query.sectionId = sectionId;
+    const docs = await TimetableModel.find(query).sort({ dayOfWeek: 1, periodNumber: 1 });
+    return docs.map(docToTimetable);
+  }
+
   async createTimetable(timetableData: InsertTimetable): Promise<Timetable> {
     const doc = await TimetableModel.create(timetableData);
     return docToTimetable(doc);
+  }
+
+  async deleteTimetable(id: string): Promise<boolean> {
+    const result = await TimetableModel.findByIdAndDelete(id);
+    return !!result;
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -847,41 +864,12 @@ class MongoStorage implements IStorage {
       { userId },
       {
         $push: {
-          salaryHistory: {
-            month,
-            amount,
-            paidDate: new Date(),
-            status: "Paid",
-          },
+          salaryHistory: { month, amount, paidDate: new Date() },
         },
       },
       { new: true },
     );
     return doc ? docToTeacherProfile(doc) : undefined;
-  }
-
-  async getTimetableByClass(
-    classId: string,
-    sectionId: string,
-  ): Promise<Timetable[]> {
-    const docs = await TimetableModel.find({ classId, sectionId }).sort({
-      dayOfWeek: 1,
-      periodNumber: 1,
-    });
-    return docs.map(docToTimetable);
-  }
-
-  async getTimetableByTeacher(teacherId: string): Promise<Timetable[]> {
-    const docs = await TimetableModel.find({ teacherId }).sort({
-      dayOfWeek: 1,
-      periodNumber: 1,
-    });
-    return docs.map(docToTimetable);
-  }
-
-  async deleteTimetable(id: string): Promise<boolean> {
-    const result = await TimetableModel.findByIdAndDelete(id);
-    return !!result;
   }
 }
 

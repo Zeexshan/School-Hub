@@ -69,7 +69,7 @@ function requireRole(...roles: string[]) {
 }
 
 export async function registerRoutes(
-  httpServer: Server,
+  _httpServer: Server,
   app: Express,
 ): Promise<Server> {
   app.use(
@@ -83,10 +83,12 @@ export async function registerRoutes(
     try {
       const result = insertUserSchema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({
-          message: "Validation failed",
-          errors: result.error.flatten(),
-        });
+        return res
+          .status(400)
+          .json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
       }
 
       const existingUser = await storage.getUserByEmail(result.data.email);
@@ -121,10 +123,12 @@ export async function registerRoutes(
     try {
       const result = loginSchema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({
-          message: "Validation failed",
-          errors: result.error.flatten(),
-        });
+        return res
+          .status(400)
+          .json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
       }
 
       const user = await storage.getUserByUsername(result.data.username);
@@ -221,10 +225,12 @@ export async function registerRoutes(
       try {
         const result = insertClassSchema.safeParse(req.body);
         if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
+          return res
+            .status(400)
+            .json({
+              message: "Validation failed",
+              errors: result.error.flatten(),
+            });
         }
         const newClass = await storage.createClass(result.data);
         return res.status(201).json(newClass);
@@ -310,15 +316,35 @@ export async function registerRoutes(
       try {
         const result = insertSectionSchema.safeParse(req.body);
         if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
+          return res
+            .status(400)
+            .json({
+              message: "Validation failed",
+              errors: result.error.flatten(),
+            });
         }
         const section = await storage.createSection(result.data);
         return res.status(201).json(section);
       } catch (error) {
         console.error("Create section error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/sections",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const { classId } = req.query;
+        if (classId) {
+          const sections = await storage.getSectionsByClass(classId as string);
+          return res.json(sections);
+        }
+        return res.json([]);
+      } catch (error) {
+        console.error("Get sections error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
     },
@@ -382,10 +408,12 @@ export async function registerRoutes(
       try {
         const result = insertStudentSchema.safeParse(req.body);
         if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
+          return res
+            .status(400)
+            .json({
+              message: "Validation failed",
+              errors: result.error.flatten(),
+            });
         }
         const student = await storage.createStudent(result.data);
         return res.status(201).json(student);
@@ -411,13 +439,31 @@ export async function registerRoutes(
   );
 
   app.get(
+    "/api/students/me",
+    authenticateToken,
+    requireRole("student"),
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const student = await storage.getStudentByUserId(req.user!.id);
+        if (!student) {
+          return res.status(404).json({ message: "Student record not found" });
+        }
+        return res.json(student);
+      } catch (error) {
+        console.error("Get my student error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.get(
     "/api/students/:id",
     authenticateToken,
     async (req: Request, res: Response) => {
       try {
         const student = await storage.getStudent(req.params.id);
         if (!student) {
-          return res.status(404).json({ message: "Student not found" });
+          return res.status(404).json({ message: "Student student not found" });
         }
         return res.json(student);
       } catch (error) {
@@ -494,10 +540,12 @@ export async function registerRoutes(
       try {
         const result = insertAttendanceSchema.safeParse(req.body);
         if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
+          return res
+            .status(400)
+            .json({
+              message: "Validation failed",
+              errors: result.error.flatten(),
+            });
         }
         const attendance = await storage.createAttendance(result.data);
         return res.status(201).json(attendance);
@@ -516,10 +564,12 @@ export async function registerRoutes(
       try {
         const result = bulkAttendanceSchema.safeParse(req.body);
         if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
+          return res
+            .status(400)
+            .json({
+              message: "Validation failed",
+              errors: result.error.flatten(),
+            });
         }
 
         const { date, classId, sectionId, records } = result.data;
@@ -550,9 +600,11 @@ export async function registerRoutes(
       try {
         const { date, classId, sectionId } = req.query;
         if (!date || !classId || !sectionId) {
-          return res.status(400).json({
-            message: "date, classId, and sectionId query parameters required",
-          });
+          return res
+            .status(400)
+            .json({
+              message: "date, classId, and sectionId query parameters required",
+            });
         }
         const attendance = await storage.getAttendanceByDateAndSection(
           date as string,
@@ -586,483 +638,6 @@ export async function registerRoutes(
     },
   );
 
-  app.post(
-    "/api/assignments",
-    authenticateToken,
-    requireRole("admin", "teacher"),
-    async (req: Request, res: Response) => {
-      try {
-        const result = insertAssignmentSchema.safeParse(req.body);
-        if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
-        }
-        const assignment = await storage.createAssignment(result.data);
-        return res.status(201).json(assignment);
-      } catch (error) {
-        console.error("Create assignment error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/assignments",
-    authenticateToken,
-    async (req: AuthRequest, res: Response) => {
-      try {
-        const { classId, sectionId, teacherId } = req.query;
-
-        if (teacherId) {
-          const assignments = await storage.getAssignmentsByTeacher(
-            teacherId as string,
-          );
-          return res.json(assignments);
-        }
-
-        if (classId) {
-          const assignments = await storage.getAssignmentsByClass(
-            classId as string,
-            sectionId as string | undefined,
-          );
-          return res.json(assignments);
-        }
-
-        return res
-          .status(400)
-          .json({ message: "classId or teacherId query parameter required" });
-      } catch (error) {
-        console.error("Get assignments error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/assignments/:id",
-    authenticateToken,
-    async (req: Request, res: Response) => {
-      try {
-        const assignment = await storage.getAssignment(req.params.id);
-        if (!assignment) {
-          return res.status(404).json({ message: "Assignment not found" });
-        }
-        return res.json(assignment);
-      } catch (error) {
-        console.error("Get assignment error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.patch(
-    "/api/assignments/:id",
-    authenticateToken,
-    requireRole("admin", "teacher"),
-    async (req: Request, res: Response) => {
-      try {
-        const updated = await storage.updateAssignment(req.params.id, req.body);
-        if (!updated) {
-          return res.status(404).json({ message: "Assignment not found" });
-        }
-        return res.json(updated);
-      } catch (error) {
-        console.error("Update assignment error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.delete(
-    "/api/assignments/:id",
-    authenticateToken,
-    requireRole("admin", "teacher"),
-    async (req: Request, res: Response) => {
-      try {
-        const deleted = await storage.deleteAssignment(req.params.id);
-        if (!deleted) {
-          return res.status(404).json({ message: "Assignment not found" });
-        }
-        return res.status(204).send();
-      } catch (error) {
-        console.error("Delete assignment error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.post(
-    "/api/submissions",
-    authenticateToken,
-    requireRole("student"),
-    async (req: Request, res: Response) => {
-      try {
-        const result = insertSubmissionSchema.safeParse(req.body);
-        if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
-        }
-        const submission = await storage.createSubmission(result.data);
-        return res.status(201).json(submission);
-      } catch (error) {
-        console.error("Create submission error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/analytics",
-    authenticateToken,
-    requireRole("admin"),
-    async (_req: Request, res: Response) => {
-      try {
-        const students = await storage.getAllStudents();
-        const teachers = await storage.getUsersByRole("teacher");
-        const monthlyRevenue = await storage.getMonthlyRevenue();
-        const attendancePercentage =
-          await storage.getTodayAttendancePercentage();
-
-        return res.json({
-          totalStudents: students.length,
-          totalTeachers: teachers.length,
-          monthlyRevenue,
-          todayAttendance: attendancePercentage,
-        });
-      } catch (error) {
-        console.error("Get analytics error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.post(
-    "/api/timetable",
-    authenticateToken,
-    requireRole("admin"),
-    async (req: Request, res: Response) => {
-      try {
-        const result = insertTimetableSchema.safeParse(req.body);
-        if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
-        }
-
-        const existing = await storage.getTimetableByTeacherPeriod(
-          result.data.teacherId,
-          result.data.dayOfWeek,
-          result.data.periodNumber,
-        );
-
-        if (existing) {
-          return res
-            .status(400)
-            .json({ message: "Teacher is already busy during this period." });
-        }
-
-        const timetable = await storage.createTimetable(result.data);
-        return res.status(201).json(timetable);
-      } catch (error) {
-        console.error("Create timetable error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/students/:studentId/submissions",
-    authenticateToken,
-    async (req: Request, res: Response) => {
-      try {
-        const submissions = await storage.getSubmissionsByStudent(
-          req.params.studentId,
-        );
-        return res.json(submissions);
-      } catch (error) {
-        console.error("Get student submissions error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.patch(
-    "/api/submissions/:id/grade",
-    authenticateToken,
-    requireRole("admin", "teacher"),
-    async (req: Request, res: Response) => {
-      try {
-        const result = gradeSubmissionSchema.safeParse(req.body);
-        if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
-        }
-        const graded = await storage.gradeSubmission(
-          req.params.id,
-          result.data.grade,
-          result.data.feedback,
-        );
-        if (!graded) {
-          return res.status(404).json({ message: "Submission not found" });
-        }
-        return res.json(graded);
-      } catch (error) {
-        console.error("Grade submission error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.post(
-    "/api/fees",
-    authenticateToken,
-    requireRole("admin"),
-    async (req: Request, res: Response) => {
-      try {
-        const result = insertFeeSchema.safeParse(req.body);
-        if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
-        }
-        const fee = await storage.createFee(result.data);
-        return res.status(201).json(fee);
-      } catch (error) {
-        console.error("Create fee error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/fees",
-    authenticateToken,
-    requireRole("admin"),
-    async (_req: Request, res: Response) => {
-      try {
-        const fees = await storage.getAllFees();
-        return res.json(fees);
-      } catch (error) {
-        console.error("Get fees error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/students/:studentId/fees",
-    authenticateToken,
-    async (req: Request, res: Response) => {
-      try {
-        const fees = await storage.getFeesByStudent(req.params.studentId);
-        return res.json(fees);
-      } catch (error) {
-        console.error("Get student fees error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.patch(
-    "/api/fees/:id/pay",
-    authenticateToken,
-    requireRole("admin"),
-    async (req: Request, res: Response) => {
-      try {
-        const updated = await storage.updateFeeStatus(
-          req.params.id,
-          "Cleared",
-          new Date(),
-        );
-        if (!updated) {
-          return res.status(404).json({ message: "Fee record not found" });
-        }
-        return res.json(updated);
-      } catch (error) {
-        console.error("Pay fee error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  // Analytics endpoint
-  app.post(
-    "/api/teachers/:id/pay-salary",
-    authenticateToken,
-    requireRole("admin"),
-    async (req: Request, res: Response) => {
-      try {
-        const { month, amount } = req.body;
-        if (!month || !amount) {
-          return res
-            .status(400)
-            .json({ message: "Month and amount are required" });
-        }
-        const updated = await storage.paySalary(req.params.id, month, amount);
-        if (!updated) {
-          return res.status(404).json({ message: "Teacher profile not found" });
-        }
-        return res.json(updated);
-      } catch (error) {
-        console.error("Pay salary error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/timetable/teacher/:teacherId",
-    authenticateToken,
-    async (req: Request, res: Response) => {
-      try {
-        const timetable = await storage.getTimetableByTeacher(req.params.teacherId);
-        return res.json(timetable);
-      } catch (error) {
-        console.error("Get teacher timetable error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/timetable/class/:classId",
-    authenticateToken,
-    async (req: Request, res: Response) => {
-      try {
-        const timetable = await storage.getTimetableByClass(req.params.classId);
-        return res.json(timetable);
-      } catch (error) {
-        console.error("Get class timetable error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/students/me",
-    authenticateToken,
-    requireRole("student"),
-    async (req: AuthRequest, res: Response) => {
-      try {
-        const student = await storage.getStudentByUserId(req.user!.id);
-        if (!student) {
-          return res.status(404).json({ message: "Student record not found" });
-        }
-        return res.json(student);
-      } catch (error) {
-        console.error("Get my student record error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/fees/student/:studentId",
-    authenticateToken,
-    async (req: Request, res: Response) => {
-      try {
-        const fees = await storage.getFeesByStudent(req.params.studentId);
-        return res.json(fees);
-      } catch (error) {
-        console.error("Get student fees error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.post(
-    "/api/timetable",
-    authenticateToken,
-    requireRole("admin"),
-    async (req: Request, res: Response) => {
-      try {
-        const result = insertTimetableSchema.safeParse(req.body);
-        if (!result.success) {
-          return res.status(400).json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
-        }
-
-        const existing = await storage.getTimetableByTeacherPeriod(
-          result.data.teacherId,
-          result.data.dayOfWeek,
-          result.data.periodNumber,
-        );
-
-        if (existing) {
-          return res
-            .status(400)
-            .json({ message: "Teacher is already busy during this period." });
-        }
-
-        const timetable = await storage.createTimetable(result.data);
-        return res.status(201).json(timetable);
-      } catch (error) {
-        console.error("Create timetable error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/timetable/class/:classId/section/:sectionId",
-    authenticateToken,
-    async (req: Request, res: Response) => {
-      try {
-        const timetable = await storage.getTimetableByClass(
-          req.params.classId,
-          req.params.sectionId,
-        );
-        return res.json(timetable);
-      } catch (error) {
-        console.error("Get timetable error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.get(
-    "/api/timetable/teacher/:teacherId",
-    authenticateToken,
-    async (req: Request, res: Response) => {
-      try {
-        const timetable = await storage.getTimetableByTeacher(
-          req.params.teacherId,
-        );
-        return res.json(timetable);
-      } catch (error) {
-        console.error("Get teacher timetable error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
-
-  app.delete(
-    "/api/timetable/:id",
-    authenticateToken,
-    requireRole("admin"),
-    async (req: Request, res: Response) => {
-      try {
-        const deleted = await storage.deleteTimetable(req.params.id);
-        if (!deleted) {
-          return res.status(404).json({ message: "Timetable entry not found" });
-        }
-        return res.status(204).send();
-      } catch (error) {
-        console.error("Delete timetable error:", error);
-        return res.status(500).json({ message: "Internal server error" });
-      }
-    },
-  );
   app.get(
     "/api/analytics",
     authenticateToken,
@@ -1087,7 +662,6 @@ export async function registerRoutes(
     },
   );
 
-  // Teacher routes
   app.get(
     "/api/teachers",
     authenticateToken,
@@ -1132,7 +706,6 @@ export async function registerRoutes(
           employeeId,
         } = req.body;
 
-        // Validate user data
         const userResult = insertUserSchema.safeParse({
           username,
           password,
@@ -1148,9 +721,8 @@ export async function registerRoutes(
           });
         }
 
-        // Validate profile data
         const profileResult = insertTeacherProfileSchema.safeParse({
-          userId: "placeholder", // Will be replaced after user creation
+          userId: "placeholder",
           salary,
           subjectSpecialization,
           panNumber,
@@ -1168,7 +740,6 @@ export async function registerRoutes(
           });
         }
 
-        // Check existing email/username
         const existingEmail = await storage.getUserByEmail(email);
         if (existingEmail) {
           return res.status(409).json({ message: "Email already in use" });
@@ -1179,10 +750,7 @@ export async function registerRoutes(
           return res.status(409).json({ message: "Username already in use" });
         }
 
-        // Create user
         const user = await storage.createUser(userResult.data);
-
-        // Create teacher profile
         const profile = await storage.createTeacherProfile({
           userId: user.id,
           salary,
@@ -1204,33 +772,100 @@ export async function registerRoutes(
     },
   );
 
-  app.patch(
-    "/api/teachers/:id",
+  app.post(
+    "/api/timetable",
     authenticateToken,
     requireRole("admin"),
     async (req: Request, res: Response) => {
       try {
-        const { salary, subjectSpecialization, qualification, designation } =
-          req.body;
-
-        const updated = await storage.updateTeacherProfile(req.params.id, {
-          salary,
-          subjectSpecialization,
-          qualification,
-          designation,
-        });
-
-        if (!updated) {
-          return res.status(404).json({ message: "Teacher profile not found" });
+        const result = insertTimetableSchema.safeParse(req.body);
+        if (!result.success) {
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
 
-        return res.json(updated);
+        const existing = await storage.getTimetableByTeacherPeriod(
+          result.data.teacherId,
+          result.data.dayOfWeek,
+          result.data.periodNumber,
+        );
+
+        if (existing) {
+          return res
+            .status(400)
+            .json({ message: "Teacher is already busy during this period." });
+        }
+
+        const timetable = await storage.createTimetable(result.data);
+        return res.status(201).json(timetable);
       } catch (error) {
-        console.error("Update teacher error:", error);
+        console.error("Create timetable error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
     },
   );
 
+  app.get(
+    "/api/timetable/teacher/:teacherId",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const timetable = await storage.getTimetableByTeacher(
+          req.params.teacherId,
+        );
+        return res.json(timetable);
+      } catch (error) {
+        console.error("Get teacher timetable error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/timetable/class/:classId",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const timetable = await storage.getTimetableByClass(req.params.classId);
+        return res.json(timetable);
+      } catch (error) {
+        console.error("Get class timetable error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/fees",
+    authenticateToken,
+    requireRole("admin"),
+    async (_req: Request, res: Response) => {
+      try {
+        const fees = await storage.getAllFees();
+        return res.json(fees);
+      } catch (error) {
+        console.error("Get fees error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/fees/student/:studentId",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const fees = await storage.getFeesByStudent(req.params.studentId);
+        return res.json(fees);
+      } catch (error) {
+        console.error("Get student fees error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  const httpServer = createServer(app);
   return httpServer;
 }
