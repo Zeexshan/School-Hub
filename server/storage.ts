@@ -19,8 +19,11 @@ import {
   type InsertFee,
   type TeacherProfile,
   type InsertTeacherProfile,
+  type Timetable,
+  type InsertTimetable,
 } from "@shared/schema";
 
+// --- DOCUMENTS ---
 interface UserDocument extends Document {
   username: string;
   password: string;
@@ -105,10 +108,26 @@ interface TeacherProfileDocument extends Document {
   salaryHistory: any[];
 }
 
+interface TimetableDocument extends Document {
+  classId: string;
+  sectionId: string;
+  teacherId: string;
+  subject: string;
+  dayOfWeek: number;
+  periodNumber: number;
+  startTime: string;
+  endTime: string;
+}
+
+// --- SCHEMAS ---
 const UserSchema = new Schema<UserDocument>({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, required: true, enum: ["admin", "teacher", "student", "parent"] },
+  role: {
+    type: String,
+    required: true,
+    enum: ["admin", "teacher", "student", "parent"],
+  },
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   contact: { type: String },
@@ -172,7 +191,12 @@ const FeeSchema = new Schema<FeeDocument>({
   amount: { type: Number, required: true },
   period: { type: String, required: true },
   dueDate: { type: String, required: true },
-  status: { type: String, required: true, enum: ["Pending", "Cleared"], default: "Pending" },
+  status: {
+    type: String,
+    required: true,
+    enum: ["Pending", "Cleared"],
+    default: "Pending",
+  },
   paidDate: { type: Date },
 });
 
@@ -189,17 +213,6 @@ const TeacherProfileSchema = new Schema<TeacherProfileDocument>({
   salaryHistory: { type: [Schema.Types.Mixed], default: [] },
 });
 
-interface TimetableDocument extends Document {
-  classId: string;
-  sectionId: string;
-  teacherId: string;
-  subject: string;
-  dayOfWeek: number;
-  periodNumber: number;
-  startTime: string;
-  endTime: string;
-}
-
 const TimetableSchema = new Schema<TimetableDocument>({
   classId: { type: String, required: true },
   sectionId: { type: String, required: true },
@@ -211,24 +224,46 @@ const TimetableSchema = new Schema<TimetableDocument>({
   endTime: { type: String, required: true },
 });
 
-TimetableSchema.index({ classId: 1, sectionId: 1, dayOfWeek: 1, periodNumber: 1 }, { unique: true });
-TimetableSchema.index({ teacherId: 1, dayOfWeek: 1, periodNumber: 1 }, { unique: true });
-
-const TimetableModel = mongoose.model<TimetableDocument>("Timetable", TimetableSchema);
-
+// Indices
+TimetableSchema.index(
+  { classId: 1, sectionId: 1, dayOfWeek: 1, periodNumber: 1 },
+  { unique: true },
+);
+TimetableSchema.index(
+  { teacherId: 1, dayOfWeek: 1, periodNumber: 1 },
+  { unique: true },
+);
 AttendanceSchema.index({ date: 1, classId: 1, sectionId: 1 });
 AttendanceSchema.index({ studentId: 1, date: 1 });
 
+// --- MODELS ---
 const UserModel = mongoose.model<UserDocument>("User", UserSchema);
 const ClassModel = mongoose.model<ClassDocument>("Class", ClassSchema);
 const SectionModel = mongoose.model<SectionDocument>("Section", SectionSchema);
 const StudentModel = mongoose.model<StudentDocument>("Student", StudentSchema);
-const AttendanceModel = mongoose.model<AttendanceDocument>("Attendance", AttendanceSchema);
-const AssignmentModel = mongoose.model<AssignmentDocument>("Assignment", AssignmentSchema);
-const SubmissionModel = mongoose.model<SubmissionDocument>("Submission", SubmissionSchema);
+const AttendanceModel = mongoose.model<AttendanceDocument>(
+  "Attendance",
+  AttendanceSchema,
+);
+const AssignmentModel = mongoose.model<AssignmentDocument>(
+  "Assignment",
+  AssignmentSchema,
+);
+const SubmissionModel = mongoose.model<SubmissionDocument>(
+  "Submission",
+  SubmissionSchema,
+);
 const FeeModel = mongoose.model<FeeDocument>("Fee", FeeSchema);
-const TeacherProfileModel = mongoose.model<TeacherProfileDocument>("TeacherProfile", TeacherProfileSchema);
+const TeacherProfileModel = mongoose.model<TeacherProfileDocument>(
+  "TeacherProfile",
+  TeacherProfileSchema,
+);
+const TimetableModel = mongoose.model<TimetableDocument>(
+  "Timetable",
+  TimetableSchema,
+);
 
+// --- CONVERTERS ---
 function docToUser(doc: UserDocument): User {
   return {
     id: doc._id.toString(),
@@ -244,11 +279,7 @@ function docToUser(doc: UserDocument): User {
 }
 
 function docToClass(doc: ClassDocument): Class {
-  return {
-    id: doc._id.toString(),
-    name: doc.name,
-    subjects: doc.subjects,
-  };
+  return { id: doc._id.toString(), name: doc.name, subjects: doc.subjects };
 }
 
 function docToSection(doc: SectionDocument): Section {
@@ -354,6 +385,7 @@ function docToTimetable(doc: TimetableDocument): Timetable {
   };
 }
 
+// --- INTERFACE ---
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -361,97 +393,134 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
   getUsersByRole(role: string): Promise<User[]>;
-  
   createClass(classData: InsertClass): Promise<Class>;
   getClass(id: string): Promise<Class | undefined>;
   getAllClasses(): Promise<Class[]>;
-  updateClass(id: string, classData: Partial<InsertClass>): Promise<Class | undefined>;
+  updateClass(
+    id: string,
+    classData: Partial<InsertClass>,
+  ): Promise<Class | undefined>;
   deleteClass(id: string): Promise<boolean>;
-  
   createSection(sectionData: InsertSection): Promise<Section>;
   getSection(id: string): Promise<Section | undefined>;
   getSectionsByClass(classId: string): Promise<Section[]>;
-  updateSection(id: string, sectionData: Partial<InsertSection>): Promise<Section | undefined>;
+  updateSection(
+    id: string,
+    sectionData: Partial<InsertSection>,
+  ): Promise<Section | undefined>;
   deleteSection(id: string): Promise<boolean>;
-  
   createStudent(studentData: InsertStudent): Promise<Student>;
   getStudent(id: string): Promise<Student | undefined>;
   getStudentByUserId(userId: string): Promise<Student | undefined>;
   getStudentsBySection(classId: string, sectionId: string): Promise<Student[]>;
   getAllStudents(): Promise<Student[]>;
-  updateStudent(id: string, studentData: Partial<InsertStudent>): Promise<Student | undefined>;
+  updateStudent(
+    id: string,
+    studentData: Partial<InsertStudent>,
+  ): Promise<Student | undefined>;
   deleteStudent(id: string): Promise<boolean>;
-  
   createAttendance(attendanceData: InsertAttendance): Promise<Attendance>;
-  getAttendanceByDateAndSection(date: string, classId: string, sectionId: string): Promise<Attendance[]>;
-  getAttendanceByStudent(studentId: string, startDate?: string, endDate?: string): Promise<Attendance[]>;
+  getAttendanceByDateAndSection(
+    date: string,
+    classId: string,
+    sectionId: string,
+  ): Promise<Attendance[]>;
+  getAttendanceByStudent(
+    studentId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<Attendance[]>;
   updateAttendance(id: string, status: string): Promise<Attendance | undefined>;
-  
   createAssignment(assignmentData: InsertAssignment): Promise<Assignment>;
   getAssignment(id: string): Promise<Assignment | undefined>;
-  getAssignmentsByClass(classId: string, sectionId?: string): Promise<Assignment[]>;
+  getAssignmentsByClass(
+    classId: string,
+    sectionId?: string,
+  ): Promise<Assignment[]>;
   getAssignmentsByTeacher(teacherId: string): Promise<Assignment[]>;
-  updateAssignment(id: string, data: Partial<InsertAssignment>): Promise<Assignment | undefined>;
+  updateAssignment(
+    id: string,
+    data: Partial<InsertAssignment>,
+  ): Promise<Assignment | undefined>;
   deleteAssignment(id: string): Promise<boolean>;
-  
   createSubmission(submissionData: InsertSubmission): Promise<Submission>;
   getSubmissionsByAssignment(assignmentId: string): Promise<Submission[]>;
   getSubmissionsByStudent(studentId: string): Promise<Submission[]>;
-  gradeSubmission(id: string, grade: string, feedback?: string): Promise<Submission | undefined>;
-  
+  gradeSubmission(
+    id: string,
+    grade: string,
+    feedback?: string,
+  ): Promise<Submission | undefined>;
   createFee(feeData: InsertFee): Promise<Fee>;
   getFeesByStudent(studentId: string): Promise<Fee[]>;
-  updateFeeStatus(id: string, status: string, paidDate?: Date): Promise<Fee | undefined>;
+  updateFeeStatus(
+    id: string,
+    status: string,
+    paidDate?: Date,
+  ): Promise<Fee | undefined>;
   getAllFees(): Promise<Fee[]>;
-  
-  // Teacher Profile methods
-  createTeacherProfile(profileData: InsertTeacherProfile): Promise<TeacherProfile>;
-  getTeacherProfileByUserId(userId: string): Promise<TeacherProfile | undefined>;
-  updateTeacherProfile(userId: string, data: Partial<InsertTeacherProfile>): Promise<TeacherProfile | undefined>;
+  createTeacherProfile(
+    profileData: InsertTeacherProfile,
+  ): Promise<TeacherProfile>;
+  getTeacherProfileByUserId(
+    userId: string,
+  ): Promise<TeacherProfile | undefined>;
+  updateTeacherProfile(
+    userId: string,
+    data: Partial<InsertTeacherProfile>,
+  ): Promise<TeacherProfile | undefined>;
   getAllTeacherProfiles(): Promise<TeacherProfile[]>;
-  paySalary(userId: string, month: string, amount: number): Promise<TeacherProfile | undefined>;
+  paySalary(
+    userId: string,
+    month: string,
+    amount: number,
+  ): Promise<TeacherProfile | undefined>;
   getMonthlyRevenue(): Promise<number>;
   getTodayAttendancePercentage(): Promise<number>;
-  getTimetableByTeacherPeriod(teacherId: string, dayOfWeek: number, periodNumber: number): Promise<Timetable | undefined>;
+  getTimetableByTeacherPeriod(
+    teacherId: string,
+    dayOfWeek: number,
+    periodNumber: number,
+  ): Promise<Timetable | undefined>;
   createTimetable(timetableData: InsertTimetable): Promise<Timetable>;
+  getTimetableByClass(classId: string, sectionId: string): Promise<Timetable[]>;
+  getTimetableByTeacher(teacherId: string): Promise<Timetable[]>;
+  deleteTimetable(id: string): Promise<boolean>;
 }
 
+// --- IMPLEMENTATION ---
 class MongoStorage implements IStorage {
   async getMonthlyRevenue(): Promise<number> {
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const result = await FeeModel.aggregate([
-      {
-        $match: {
-          status: "Cleared",
-          paidDate: { $gte: startOfMonth }
-        }
-      },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: "$amount" }
-        }
-      }
-    ]);
-
-    return result.length > 0 ? result[0].total : 0;
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const fees = await FeeModel.find({
+      status: "Cleared",
+      paidDate: { $gte: startOfMonth },
+    });
+    return fees.reduce((sum, fee) => sum + fee.amount, 0);
   }
 
   async getTodayAttendancePercentage(): Promise<number> {
-    const today = new Date().toISOString().split('T')[0];
-    const records = await AttendanceModel.find({ date: today });
-    
-    if (records.length === 0) return 0;
-    
-    const presentCount = records.filter(r => r.status === "Present").length;
-    return (presentCount / records.length) * 100;
+    const today = new Date().toISOString().split("T")[0];
+    const totalStudents = await StudentModel.countDocuments();
+    if (totalStudents === 0) return 0;
+    const presentCount = await AttendanceModel.countDocuments({
+      date: today,
+      status: "Present",
+    });
+    return Math.round((presentCount / totalStudents) * 100);
   }
 
-  async getTimetableByTeacherPeriod(teacherId: string, dayOfWeek: number, periodNumber: number): Promise<Timetable | undefined> {
-    const doc = await TimetableModel.findOne({ teacherId, dayOfWeek, periodNumber });
+  async getTimetableByTeacherPeriod(
+    teacherId: string,
+    dayOfWeek: number,
+    periodNumber: number,
+  ): Promise<Timetable | undefined> {
+    const doc = await TimetableModel.findOne({
+      teacherId,
+      dayOfWeek,
+      periodNumber,
+    });
     return doc ? docToTimetable(doc) : undefined;
   }
 
@@ -459,6 +528,7 @@ class MongoStorage implements IStorage {
     const doc = await TimetableModel.create(timetableData);
     return docToTimetable(doc);
   }
+
   async getUser(id: string): Promise<User | undefined> {
     const doc = await UserModel.findById(id);
     return doc ? docToUser(doc) : undefined;
@@ -505,8 +575,13 @@ class MongoStorage implements IStorage {
     return docs.map(docToClass);
   }
 
-  async updateClass(id: string, classData: Partial<InsertClass>): Promise<Class | undefined> {
-    const doc = await ClassModel.findByIdAndUpdate(id, classData, { new: true });
+  async updateClass(
+    id: string,
+    classData: Partial<InsertClass>,
+  ): Promise<Class | undefined> {
+    const doc = await ClassModel.findByIdAndUpdate(id, classData, {
+      new: true,
+    });
     return doc ? docToClass(doc) : undefined;
   }
 
@@ -530,8 +605,13 @@ class MongoStorage implements IStorage {
     return docs.map(docToSection);
   }
 
-  async updateSection(id: string, sectionData: Partial<InsertSection>): Promise<Section | undefined> {
-    const doc = await SectionModel.findByIdAndUpdate(id, sectionData, { new: true });
+  async updateSection(
+    id: string,
+    sectionData: Partial<InsertSection>,
+  ): Promise<Section | undefined> {
+    const doc = await SectionModel.findByIdAndUpdate(id, sectionData, {
+      new: true,
+    });
     return doc ? docToSection(doc) : undefined;
   }
 
@@ -555,7 +635,10 @@ class MongoStorage implements IStorage {
     return doc ? docToStudent(doc) : undefined;
   }
 
-  async getStudentsBySection(classId: string, sectionId: string): Promise<Student[]> {
+  async getStudentsBySection(
+    classId: string,
+    sectionId: string,
+  ): Promise<Student[]> {
     const docs = await StudentModel.find({ classId, sectionId });
     return docs.map(docToStudent);
   }
@@ -565,8 +648,13 @@ class MongoStorage implements IStorage {
     return docs.map(docToStudent);
   }
 
-  async updateStudent(id: string, studentData: Partial<InsertStudent>): Promise<Student | undefined> {
-    const doc = await StudentModel.findByIdAndUpdate(id, studentData, { new: true });
+  async updateStudent(
+    id: string,
+    studentData: Partial<InsertStudent>,
+  ): Promise<Student | undefined> {
+    const doc = await StudentModel.findByIdAndUpdate(id, studentData, {
+      new: true,
+    });
     return doc ? docToStudent(doc) : undefined;
   }
 
@@ -575,17 +663,27 @@ class MongoStorage implements IStorage {
     return !!result;
   }
 
-  async createAttendance(attendanceData: InsertAttendance): Promise<Attendance> {
+  async createAttendance(
+    attendanceData: InsertAttendance,
+  ): Promise<Attendance> {
     const doc = await AttendanceModel.create(attendanceData);
     return docToAttendance(doc);
   }
 
-  async getAttendanceByDateAndSection(date: string, classId: string, sectionId: string): Promise<Attendance[]> {
+  async getAttendanceByDateAndSection(
+    date: string,
+    classId: string,
+    sectionId: string,
+  ): Promise<Attendance[]> {
     const docs = await AttendanceModel.find({ date, classId, sectionId });
     return docs.map(docToAttendance);
   }
 
-  async getAttendanceByStudent(studentId: string, startDate?: string, endDate?: string): Promise<Attendance[]> {
+  async getAttendanceByStudent(
+    studentId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<Attendance[]> {
     const query: any = { studentId };
     if (startDate || endDate) {
       query.date = {};
@@ -596,12 +694,21 @@ class MongoStorage implements IStorage {
     return docs.map(docToAttendance);
   }
 
-  async updateAttendance(id: string, status: string): Promise<Attendance | undefined> {
-    const doc = await AttendanceModel.findByIdAndUpdate(id, { status }, { new: true });
+  async updateAttendance(
+    id: string,
+    status: string,
+  ): Promise<Attendance | undefined> {
+    const doc = await AttendanceModel.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true },
+    );
     return doc ? docToAttendance(doc) : undefined;
   }
 
-  async createAssignment(assignmentData: InsertAssignment): Promise<Assignment> {
+  async createAssignment(
+    assignmentData: InsertAssignment,
+  ): Promise<Assignment> {
     const doc = await AssignmentModel.create(assignmentData);
     return docToAssignment(doc);
   }
@@ -611,22 +718,31 @@ class MongoStorage implements IStorage {
     return doc ? docToAssignment(doc) : undefined;
   }
 
-  async getAssignmentsByClass(classId: string, sectionId?: string): Promise<Assignment[]> {
+  async getAssignmentsByClass(
+    classId: string,
+    sectionId?: string,
+  ): Promise<Assignment[]> {
     const query: any = { classId };
-    if (sectionId) {
+    if (sectionId)
       query.$or = [{ sectionId }, { sectionId: { $exists: false } }];
-    }
     const docs = await AssignmentModel.find(query).sort({ deadline: 1 });
     return docs.map(docToAssignment);
   }
 
   async getAssignmentsByTeacher(teacherId: string): Promise<Assignment[]> {
-    const docs = await AssignmentModel.find({ teacherId }).sort({ deadline: 1 });
+    const docs = await AssignmentModel.find({ teacherId }).sort({
+      deadline: 1,
+    });
     return docs.map(docToAssignment);
   }
 
-  async updateAssignment(id: string, data: Partial<InsertAssignment>): Promise<Assignment | undefined> {
-    const doc = await AssignmentModel.findByIdAndUpdate(id, data, { new: true });
+  async updateAssignment(
+    id: string,
+    data: Partial<InsertAssignment>,
+  ): Promise<Assignment | undefined> {
+    const doc = await AssignmentModel.findByIdAndUpdate(id, data, {
+      new: true,
+    });
     return doc ? docToAssignment(doc) : undefined;
   }
 
@@ -635,12 +751,16 @@ class MongoStorage implements IStorage {
     return !!result;
   }
 
-  async createSubmission(submissionData: InsertSubmission): Promise<Submission> {
+  async createSubmission(
+    submissionData: InsertSubmission,
+  ): Promise<Submission> {
     const doc = await SubmissionModel.create(submissionData);
     return docToSubmission(doc);
   }
 
-  async getSubmissionsByAssignment(assignmentId: string): Promise<Submission[]> {
+  async getSubmissionsByAssignment(
+    assignmentId: string,
+  ): Promise<Submission[]> {
     const docs = await SubmissionModel.find({ assignmentId });
     return docs.map(docToSubmission);
   }
@@ -650,10 +770,16 @@ class MongoStorage implements IStorage {
     return docs.map(docToSubmission);
   }
 
-  async gradeSubmission(id: string, grade: string, feedback?: string): Promise<Submission | undefined> {
+  async gradeSubmission(
+    id: string,
+    grade: string,
+    feedback?: string,
+  ): Promise<Submission | undefined> {
     const update: any = { grade, gradedAt: new Date() };
     if (feedback) update.feedback = feedback;
-    const doc = await SubmissionModel.findByIdAndUpdate(id, update, { new: true });
+    const doc = await SubmissionModel.findByIdAndUpdate(id, update, {
+      new: true,
+    });
     return doc ? docToSubmission(doc) : undefined;
   }
 
@@ -667,7 +793,11 @@ class MongoStorage implements IStorage {
     return docs.map(docToFee);
   }
 
-  async updateFeeStatus(id: string, status: string, paidDate?: Date): Promise<Fee | undefined> {
+  async updateFeeStatus(
+    id: string,
+    status: string,
+    paidDate?: Date,
+  ): Promise<Fee | undefined> {
     const update: any = { status };
     if (paidDate) update.paidDate = paidDate;
     const doc = await FeeModel.findByIdAndUpdate(id, update, { new: true });
@@ -679,18 +809,27 @@ class MongoStorage implements IStorage {
     return docs.map(docToFee);
   }
 
-  async createTeacherProfile(profileData: InsertTeacherProfile): Promise<TeacherProfile> {
+  async createTeacherProfile(
+    profileData: InsertTeacherProfile,
+  ): Promise<TeacherProfile> {
     const doc = await TeacherProfileModel.create(profileData);
     return docToTeacherProfile(doc);
   }
 
-  async getTeacherProfileByUserId(userId: string): Promise<TeacherProfile | undefined> {
+  async getTeacherProfileByUserId(
+    userId: string,
+  ): Promise<TeacherProfile | undefined> {
     const doc = await TeacherProfileModel.findOne({ userId });
     return doc ? docToTeacherProfile(doc) : undefined;
   }
 
-  async updateTeacherProfile(userId: string, data: Partial<InsertTeacherProfile>): Promise<TeacherProfile | undefined> {
-    const doc = await TeacherProfileModel.findOneAndUpdate({ userId }, data, { new: true });
+  async updateTeacherProfile(
+    userId: string,
+    data: Partial<InsertTeacherProfile>,
+  ): Promise<TeacherProfile | undefined> {
+    const doc = await TeacherProfileModel.findOneAndUpdate({ userId }, data, {
+      new: true,
+    });
     return doc ? docToTeacherProfile(doc) : undefined;
   }
 
@@ -699,7 +838,11 @@ class MongoStorage implements IStorage {
     return docs.map(docToTeacherProfile);
   }
 
-  async paySalary(userId: string, month: string, amount: number): Promise<TeacherProfile | undefined> {
+  async paySalary(
+    userId: string,
+    month: string,
+    amount: number,
+  ): Promise<TeacherProfile | undefined> {
     const doc = await TeacherProfileModel.findOneAndUpdate(
       { userId },
       {
@@ -708,60 +851,37 @@ class MongoStorage implements IStorage {
             month,
             amount,
             paidDate: new Date(),
-            status: "Paid"
-          }
-        }
+            status: "Paid",
+          },
+        },
       },
-      { new: true }
+      { new: true },
     );
     return doc ? docToTeacherProfile(doc) : undefined;
   }
 
-  async createTimetable(timetableData: InsertTimetable): Promise<Timetable> {
-    const doc = await TimetableModel.create(timetableData);
-    return docToTimetable(doc);
-  }
-
-  async getTimetableByClass(classId: string, sectionId: string): Promise<Timetable[]> {
-    const docs = await TimetableModel.find({ classId, sectionId }).sort({ dayOfWeek: 1, periodNumber: 1 });
+  async getTimetableByClass(
+    classId: string,
+    sectionId: string,
+  ): Promise<Timetable[]> {
+    const docs = await TimetableModel.find({ classId, sectionId }).sort({
+      dayOfWeek: 1,
+      periodNumber: 1,
+    });
     return docs.map(docToTimetable);
   }
 
   async getTimetableByTeacher(teacherId: string): Promise<Timetable[]> {
-    const docs = await TimetableModel.find({ teacherId }).sort({ dayOfWeek: 1, periodNumber: 1 });
+    const docs = await TimetableModel.find({ teacherId }).sort({
+      dayOfWeek: 1,
+      periodNumber: 1,
+    });
     return docs.map(docToTimetable);
   }
 
   async deleteTimetable(id: string): Promise<boolean> {
     const result = await TimetableModel.findByIdAndDelete(id);
     return !!result;
-  }
-
-  async getMonthlyRevenue(): Promise<number> {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    
-    const fees = await FeeModel.find({
-      status: "Cleared",
-      paidDate: { $gte: startOfMonth, $lte: endOfMonth }
-    });
-    
-    return fees.reduce((sum, fee) => sum + fee.amount, 0);
-  }
-
-  async getTodayAttendancePercentage(): Promise<number> {
-    const today = new Date().toISOString().split('T')[0];
-    const totalStudents = await StudentModel.countDocuments();
-    
-    if (totalStudents === 0) return 0;
-    
-    const presentCount = await AttendanceModel.countDocuments({
-      date: today,
-      status: "Present"
-    });
-    
-    return Math.round((presentCount / totalStudents) * 100);
   }
 }
 

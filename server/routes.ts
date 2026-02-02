@@ -83,12 +83,10 @@ export async function registerRoutes(
     try {
       const result = insertUserSchema.safeParse(req.body);
       if (!result.success) {
-        return res
-          .status(400)
-          .json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: result.error.flatten(),
+        });
       }
 
       const existingUser = await storage.getUserByEmail(result.data.email);
@@ -123,12 +121,10 @@ export async function registerRoutes(
     try {
       const result = loginSchema.safeParse(req.body);
       if (!result.success) {
-        return res
-          .status(400)
-          .json({
-            message: "Validation failed",
-            errors: result.error.flatten(),
-          });
+        return res.status(400).json({
+          message: "Validation failed",
+          errors: result.error.flatten(),
+        });
       }
 
       const user = await storage.getUserByUsername(result.data.username);
@@ -225,12 +221,10 @@ export async function registerRoutes(
       try {
         const result = insertClassSchema.safeParse(req.body);
         if (!result.success) {
-          return res
-            .status(400)
-            .json({
-              message: "Validation failed",
-              errors: result.error.flatten(),
-            });
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
         const newClass = await storage.createClass(result.data);
         return res.status(201).json(newClass);
@@ -316,12 +310,10 @@ export async function registerRoutes(
       try {
         const result = insertSectionSchema.safeParse(req.body);
         if (!result.success) {
-          return res
-            .status(400)
-            .json({
-              message: "Validation failed",
-              errors: result.error.flatten(),
-            });
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
         const section = await storage.createSection(result.data);
         return res.status(201).json(section);
@@ -390,12 +382,10 @@ export async function registerRoutes(
       try {
         const result = insertStudentSchema.safeParse(req.body);
         if (!result.success) {
-          return res
-            .status(400)
-            .json({
-              message: "Validation failed",
-              errors: result.error.flatten(),
-            });
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
         const student = await storage.createStudent(result.data);
         return res.status(201).json(student);
@@ -504,12 +494,10 @@ export async function registerRoutes(
       try {
         const result = insertAttendanceSchema.safeParse(req.body);
         if (!result.success) {
-          return res
-            .status(400)
-            .json({
-              message: "Validation failed",
-              errors: result.error.flatten(),
-            });
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
         const attendance = await storage.createAttendance(result.data);
         return res.status(201).json(attendance);
@@ -528,12 +516,10 @@ export async function registerRoutes(
       try {
         const result = bulkAttendanceSchema.safeParse(req.body);
         if (!result.success) {
-          return res
-            .status(400)
-            .json({
-              message: "Validation failed",
-              errors: result.error.flatten(),
-            });
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
 
         const { date, classId, sectionId, records } = result.data;
@@ -564,11 +550,9 @@ export async function registerRoutes(
       try {
         const { date, classId, sectionId } = req.query;
         if (!date || !classId || !sectionId) {
-          return res
-            .status(400)
-            .json({
-              message: "date, classId, and sectionId query parameters required",
-            });
+          return res.status(400).json({
+            message: "date, classId, and sectionId query parameters required",
+          });
         }
         const attendance = await storage.getAttendanceByDateAndSection(
           date as string,
@@ -610,12 +594,10 @@ export async function registerRoutes(
       try {
         const result = insertAssignmentSchema.safeParse(req.body);
         if (!result.success) {
-          return res
-            .status(400)
-            .json({
-              message: "Validation failed",
-              errors: result.error.flatten(),
-            });
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
         const assignment = await storage.createAssignment(result.data);
         return res.status(201).json(assignment);
@@ -719,12 +701,10 @@ export async function registerRoutes(
       try {
         const result = insertSubmissionSchema.safeParse(req.body);
         if (!result.success) {
-          return res
-            .status(400)
-            .json({
-              message: "Validation failed",
-              errors: result.error.flatten(),
-            });
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
         const submission = await storage.createSubmission(result.data);
         return res.status(201).json(submission);
@@ -744,13 +724,14 @@ export async function registerRoutes(
         const students = await storage.getAllStudents();
         const teachers = await storage.getUsersByRole("teacher");
         const monthlyRevenue = await storage.getMonthlyRevenue();
-        const attendancePercentage = await storage.getTodayAttendancePercentage();
+        const attendancePercentage =
+          await storage.getTodayAttendancePercentage();
 
         return res.json({
           totalStudents: students.length,
           totalTeachers: teachers.length,
           monthlyRevenue,
-          attendancePercentage,
+          todayAttendance: attendancePercentage,
         });
       } catch (error) {
         console.error("Get analytics error:", error);
@@ -780,7 +761,9 @@ export async function registerRoutes(
         );
 
         if (existing) {
-          return res.status(400).json({ message: "Teacher is already busy during this period." });
+          return res
+            .status(400)
+            .json({ message: "Teacher is already busy during this period." });
         }
 
         const timetable = await storage.createTimetable(result.data);
@@ -816,12 +799,10 @@ export async function registerRoutes(
       try {
         const result = gradeSubmissionSchema.safeParse(req.body);
         if (!result.success) {
-          return res
-            .status(400)
-            .json({
-              message: "Validation failed",
-              errors: result.error.flatten(),
-            });
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
         const graded = await storage.gradeSubmission(
           req.params.id,
@@ -847,12 +828,10 @@ export async function registerRoutes(
       try {
         const result = insertFeeSchema.safeParse(req.body);
         if (!result.success) {
-          return res
-            .status(400)
-            .json({
-              message: "Validation failed",
-              errors: result.error.flatten(),
-            });
+          return res.status(400).json({
+            message: "Validation failed",
+            errors: result.error.flatten(),
+          });
         }
         const fee = await storage.createFee(result.data);
         return res.status(201).json(fee);
@@ -923,7 +902,9 @@ export async function registerRoutes(
       try {
         const { month, amount } = req.body;
         if (!month || !amount) {
-          return res.status(400).json({ message: "Month and amount are required" });
+          return res
+            .status(400)
+            .json({ message: "Month and amount are required" });
         }
         const updated = await storage.paySalary(req.params.id, month, amount);
         if (!updated) {
@@ -934,7 +915,67 @@ export async function registerRoutes(
         console.error("Pay salary error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
-    }
+    },
+  );
+
+  app.get(
+    "/api/timetable/teacher/:teacherId",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const timetable = await storage.getTimetableByTeacher(req.params.teacherId);
+        return res.json(timetable);
+      } catch (error) {
+        console.error("Get teacher timetable error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/timetable/class/:classId",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const timetable = await storage.getTimetableByClass(req.params.classId);
+        return res.json(timetable);
+      } catch (error) {
+        console.error("Get class timetable error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/students/me",
+    authenticateToken,
+    requireRole("student"),
+    async (req: AuthRequest, res: Response) => {
+      try {
+        const student = await storage.getStudentByUserId(req.user!.id);
+        if (!student) {
+          return res.status(404).json({ message: "Student record not found" });
+        }
+        return res.json(student);
+      } catch (error) {
+        console.error("Get my student record error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
+  );
+
+  app.get(
+    "/api/fees/student/:studentId",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const fees = await storage.getFeesByStudent(req.params.studentId);
+        return res.json(fees);
+      } catch (error) {
+        console.error("Get student fees error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    },
   );
 
   app.post(
@@ -950,13 +991,26 @@ export async function registerRoutes(
             errors: result.error.flatten(),
           });
         }
+
+        const existing = await storage.getTimetableByTeacherPeriod(
+          result.data.teacherId,
+          result.data.dayOfWeek,
+          result.data.periodNumber,
+        );
+
+        if (existing) {
+          return res
+            .status(400)
+            .json({ message: "Teacher is already busy during this period." });
+        }
+
         const timetable = await storage.createTimetable(result.data);
         return res.status(201).json(timetable);
       } catch (error) {
         console.error("Create timetable error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
-    }
+    },
   );
 
   app.get(
@@ -964,13 +1018,16 @@ export async function registerRoutes(
     authenticateToken,
     async (req: Request, res: Response) => {
       try {
-        const timetable = await storage.getTimetableByClass(req.params.classId, req.params.sectionId);
+        const timetable = await storage.getTimetableByClass(
+          req.params.classId,
+          req.params.sectionId,
+        );
         return res.json(timetable);
       } catch (error) {
         console.error("Get timetable error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
-    }
+    },
   );
 
   app.get(
@@ -978,13 +1035,15 @@ export async function registerRoutes(
     authenticateToken,
     async (req: Request, res: Response) => {
       try {
-        const timetable = await storage.getTimetableByTeacher(req.params.teacherId);
+        const timetable = await storage.getTimetableByTeacher(
+          req.params.teacherId,
+        );
         return res.json(timetable);
       } catch (error) {
         console.error("Get teacher timetable error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
-    }
+    },
   );
 
   app.delete(
@@ -1002,7 +1061,7 @@ export async function registerRoutes(
         console.error("Delete timetable error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
-    }
+    },
   );
   app.get(
     "/api/analytics",
@@ -1025,7 +1084,7 @@ export async function registerRoutes(
         console.error("Analytics error:", error);
         return res.status(500).json({ message: "Internal server error" });
       }
-    }
+    },
   );
 
   // Teacher routes
@@ -1037,13 +1096,13 @@ export async function registerRoutes(
       try {
         const teachers = await storage.getUsersByRole("teacher");
         const profiles = await storage.getAllTeacherProfiles();
-        
+
         const teachersWithProfiles = teachers.map((teacher) => {
           const { password, ...teacherWithoutPassword } = teacher;
           const profile = profiles.find((p) => p.userId === teacher.id);
           return { ...teacherWithoutPassword, profile };
         });
-        
+
         return res.json(teachersWithProfiles);
       } catch (error) {
         console.error("Get teachers error:", error);
@@ -1058,8 +1117,21 @@ export async function registerRoutes(
     requireRole("admin"),
     async (req: Request, res: Response) => {
       try {
-        const { name, email, username, password, salary, subjectSpecialization, panNumber, aadhaarNumber, qualification, joinDate, designation, employeeId } = req.body;
-        
+        const {
+          name,
+          email,
+          username,
+          password,
+          salary,
+          subjectSpecialization,
+          panNumber,
+          aadhaarNumber,
+          qualification,
+          joinDate,
+          designation,
+          employeeId,
+        } = req.body;
+
         // Validate user data
         const userResult = insertUserSchema.safeParse({
           username,
@@ -1068,7 +1140,7 @@ export async function registerRoutes(
           email,
           role: "teacher",
         });
-        
+
         if (!userResult.success) {
           return res.status(400).json({
             message: "Validation failed",
@@ -1109,7 +1181,7 @@ export async function registerRoutes(
 
         // Create user
         const user = await storage.createUser(userResult.data);
-        
+
         // Create teacher profile
         const profile = await storage.createTeacherProfile({
           userId: user.id,
@@ -1122,7 +1194,7 @@ export async function registerRoutes(
           designation,
           employeeId,
         });
-        
+
         const { password: _, ...userWithoutPassword } = user;
         return res.status(201).json({ ...userWithoutPassword, profile });
       } catch (error) {
@@ -1138,19 +1210,20 @@ export async function registerRoutes(
     requireRole("admin"),
     async (req: Request, res: Response) => {
       try {
-        const { salary, subjectSpecialization, qualification, designation } = req.body;
-        
+        const { salary, subjectSpecialization, qualification, designation } =
+          req.body;
+
         const updated = await storage.updateTeacherProfile(req.params.id, {
           salary,
           subjectSpecialization,
           qualification,
           designation,
         });
-        
+
         if (!updated) {
           return res.status(404).json({ message: "Teacher profile not found" });
         }
-        
+
         return res.json(updated);
       } catch (error) {
         console.error("Update teacher error:", error);

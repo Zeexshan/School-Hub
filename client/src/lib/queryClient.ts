@@ -14,7 +14,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const token = localStorage.getItem("token");
   const headers: HeadersInit = {};
-  
+
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -40,7 +40,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const token = localStorage.getItem("token");
     const headers: HeadersInit = {};
-    
+
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }

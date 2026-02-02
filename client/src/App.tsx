@@ -15,6 +15,8 @@ import TimetablePage from "@/pages/admin/timetable";
 import ClassesPage from "@/pages/admin/classes";
 import FeesPage from "@/pages/admin/fees";
 import AttendancePage from "@/pages/teacher/attendance";
+import TeacherDashboard from "@/pages/teacher/dashboard";
+import StudentDashboard from "@/pages/student/dashboard";
 import NotFound from "@/pages/not-found";
 
 // Protected Route Component
@@ -95,11 +97,15 @@ function Router() {
 
       {/* Teacher Routes */}
       <Route path="/teacher/dashboard">
-        {/* Placeholder for teacher dashboard, reusing attendance for MVP if needed or redirecting */}
-        <ProtectedRoute component={AttendancePage} allowedRoles={["teacher"]} />
+        <ProtectedRoute component={TeacherDashboard} allowedRoles={["teacher"]} />
       </Route>
       <Route path="/teacher/attendance">
         <ProtectedRoute component={AttendancePage} allowedRoles={["teacher"]} />
+      </Route>
+
+      {/* Student Routes */}
+      <Route path="/student/dashboard">
+        <ProtectedRoute component={StudentDashboard} allowedRoles={["student"]} />
       </Route>
 
       {/* Fallback */}

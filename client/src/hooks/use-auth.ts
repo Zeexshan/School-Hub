@@ -7,12 +7,21 @@ import { useLocation } from "wouter";
 async function fetchMe() {
   const token = localStorage.getItem("token");
   const headers: HeadersInit = {};
+
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
+
   const res = await fetch(api.auth.me.path, { headers });
+
+  // If unauthorized, return null so we know to show the login page
   if (res.status === 401) return null;
-  if (!res.ok) throw new Error("Failed to fetch user");
+
+  if (!res.ok) {
+    // Silently fail on other errors to avoid crashing the app loop
+    return null;
+  }
+
   return api.auth.me.responses[200].parse(await res.json());
 }
 
@@ -25,6 +34,7 @@ export function useAuth() {
     queryKey: [api.auth.me.path],
     queryFn: fetchMe,
     retry: false,
+    staleTime: 5 * 60 * 1000, // Keep user data "fresh" for 5 mins
   });
 
   const loginMutation = useMutation({
@@ -43,35 +53,58 @@ export function useAuth() {
       return api.auth.login.responses[200].parse(await res.json());
     },
     onSuccess: (data) => {
-      // Save token to localStorage
+      // 1. CRITICAL: Save token FIRST before anything else
       if (data.token) {
         localStorage.setItem("token", data.token);
       }
+
+      // 2. Manually update the user state so the UI updates immediately
       queryClient.setQueryData([api.auth.me.path], data.user);
-      toast({ title: "Welcome back!", description: `Logged in as ${data.user.name}` });
-      
-      // Redirect based on role
+
+      // 3. FORCE REFRESH: Tell all other hooks (Dashboard, Students, etc.) to fetch again
+      // This ensures they see the new token and don't return 401
+      queryClient.invalidateQueries();
+
+      toast({
+        title: "Welcome back!",
+        description: `Logged in as ${data.user.name}`,
+      });
+
+      // 4. Redirect based on role
       switch (data.user.role) {
-        case "admin": setLocation("/admin/dashboard"); break;
-        case "teacher": setLocation("/teacher/dashboard"); break;
-        case "student": setLocation("/student/dashboard"); break;
-        case "parent": setLocation("/student/dashboard"); break; // Parents see student view for MVP
-        default: setLocation("/");
+        case "admin":
+          setLocation("/admin/dashboard");
+          break;
+        case "teacher":
+          setLocation("/teacher/dashboard");
+          break;
+        case "student":
+          setLocation("/student/dashboard");
+          break;
+        case "parent":
+          setLocation("/student/dashboard");
+          break;
+        default:
+          setLocation("/");
       }
     },
     onError: (error: Error) => {
-      toast({ title: "Login failed", description: error.message, variant: "destructive" });
+      toast({
+        title: "Login failed",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      // Clear the token from localStorage
       localStorage.removeItem("token");
-      return Promise.resolve(); 
+      return Promise.resolve();
     },
     onSuccess: () => {
       queryClient.setQueryData([api.auth.me.path], null);
+      // Clear all cached data (analytics, students, etc) so next login is fresh
       queryClient.clear();
       setLocation("/auth/login");
       toast({ title: "Logged out", description: "See you next time!" });
