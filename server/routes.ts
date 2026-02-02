@@ -463,7 +463,7 @@ export async function registerRoutes(
       try {
         const student = await storage.getStudent(req.params.id);
         if (!student) {
-          return res.status(404).json({ message: "Student student not found" });
+          return res.status(404).json({ message: "Student not found" });
         }
         return res.json(student);
       } catch (error) {
@@ -864,6 +864,29 @@ export async function registerRoutes(
         return res.status(500).json({ message: "Internal server error" });
       }
     },
+  );
+
+  app.get(
+    "/api/timetable/substitutes",
+    authenticateToken,
+    async (req: Request, res: Response) => {
+      try {
+        const { dayOfWeek, periodNumber, teacherId, subject } = req.query;
+        if (!dayOfWeek || !periodNumber || !teacherId) {
+          return res.status(400).json({ message: "Missing required parameters" });
+        }
+        const substitutes = await storage.getSubstituteTeachers(
+          Number(dayOfWeek),
+          Number(periodNumber),
+          teacherId as string,
+          subject as string
+        );
+        return res.json(substitutes);
+      } catch (error) {
+        console.error("Get substitutes error:", error);
+        return res.status(500).json({ message: "Internal server error" });
+      }
+    }
   );
 
   const httpServer = createServer(app);

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 import { Loader2 } from "lucide-react";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 // Pages
 import LoginPage from "@/pages/auth/login";
@@ -118,8 +119,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <SidebarProvider>
+          <Toaster />
+          <Router />
+        </SidebarProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

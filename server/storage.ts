@@ -486,6 +486,12 @@ export interface IStorage {
   getTimetableByClass(classId: string, sectionId?: string): Promise<Timetable[]>;
   getTimetableByTeacher(teacherId: string): Promise<Timetable[]>;
   deleteTimetable(id: string): Promise<boolean>;
+  getSubstituteTeachers(
+    dayOfWeek: number,
+    periodNumber: number,
+    excludedTeacherId: string,
+    subject?: string,
+  ): Promise<User[]>;
 }
 
 // --- IMPLEMENTATION ---
@@ -502,13 +508,14 @@ export class MongoStorage implements IStorage {
 
   async getTodayAttendancePercentage(): Promise<number> {
     const today = new Date().toISOString().split("T")[0];
-    const totalStudents = await StudentModel.countDocuments();
-    if (totalStudents === 0) return 0;
+    const students = await StudentModel.find();
+    if (students.length === 0) return 0;
+    
     const presentCount = await AttendanceModel.countDocuments({
       date: today,
       status: "Present",
     });
-    return Math.round((presentCount / totalStudents) * 100);
+    return Math.round((presentCount / students.length) * 100);
   }
 
   async getTimetableByTeacherPeriod(
@@ -544,6 +551,41 @@ export class MongoStorage implements IStorage {
   async deleteTimetable(id: string): Promise<boolean> {
     const result = await TimetableModel.findByIdAndDelete(id);
     return !!result;
+  }
+
+  async getSubstituteTeachers(
+    dayOfWeek: number,
+    periodNumber: number,
+    excludedTeacherId: string,
+    subject?: string,
+  ): Promise<User[]> {
+    // 1. Get all teacher users
+    const teachers = await UserModel.find({ role: "teacher" });
+    
+    // 2. Find teachers who are ALREADY assigned during this slot
+    const busyTimetables = await TimetableModel.find({
+      dayOfWeek,
+      periodNumber
+    });
+    const busyTeacherIds = new Set(busyTimetables.map(t => t.teacherId));
+    
+    // 3. Find teachers who are ABSENT today
+    const today = new Date().toISOString().split("T")[0];
+    const absentAttendance = await AttendanceModel.find({
+      date: today,
+      status: "Absent"
+    });
+    // This assumes teachers have student records or a separate attendance system. 
+    // In this app, attendance is for students. Let's assume we check teacher attendance separately if it existed.
+    // For now, we'll just check if they are busy in the timetable.
+    
+    // 4. Filter teachers
+    const availableTeachers = teachers.filter(t => 
+      t.id.toString() !== excludedTeacherId && 
+      !busyTeacherIds.has(t.id.toString())
+    );
+
+    return availableTeachers.map(docToUser);
   }
 
   async getUser(id: string): Promise<User | undefined> {

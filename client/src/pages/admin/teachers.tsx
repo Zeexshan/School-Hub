@@ -37,8 +37,8 @@ const teacherFormSchema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
   subjectSpecialization: z.string().min(1, "Subject is required"),
   salary: z.coerce.number().positive("Salary must be positive"),
-  panNumber: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN format"),
-  aadhaarNumber: z.string().length(12, "Aadhaar must be 12 digits"),
+  panNumber: z.string().optional(),
+  aadhaarNumber: z.string().optional(),
   qualification: z.string().min(1, "Qualification is required"),
   joinDate: z.string().min(1, "Join date is required"),
   designation: z.string().min(1, "Designation is required"),
@@ -354,7 +354,7 @@ export default function TeachersPage() {
                   name="panNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>PAN Number</FormLabel>
+                      <FormLabel>PAN Number (Optional)</FormLabel>
                       <FormControl>
                         <Input placeholder="ABCDE1234F" {...field} className="uppercase" />
                       </FormControl>
@@ -367,7 +367,7 @@ export default function TeachersPage() {
                   name="aadhaarNumber"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Aadhaar Number</FormLabel>
+                      <FormLabel>Aadhaar Number (Optional)</FormLabel>
                       <FormControl>
                         <Input placeholder="12-digit number" {...field} maxLength={12} />
                       </FormControl>

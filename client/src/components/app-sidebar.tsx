@@ -1,12 +1,10 @@
 import {
   Calendar,
-  Home,
   Users,
   CheckCircle,
   LayoutDashboard,
   GraduationCap,
   Receipt,
-  BookOpen,
 } from "lucide-react";
 import {
   Sidebar,
@@ -35,14 +33,11 @@ export function AppSidebar() {
       { title: "Fees", url: "/admin/fees", icon: Receipt },
     ],
     teacher: [
-      { title: "Dashboard", url: "/teacher/dashboard", icon: LayoutDashboard },
+      { title: "Teacher Dashboard", url: "/teacher/dashboard", icon: LayoutDashboard },
       { title: "Mark Attendance", url: "/teacher/attendance", icon: CheckCircle },
-      { title: "Schedule", url: "/teacher/dashboard", icon: Calendar },
     ],
     student: [
-      { title: "Dashboard", url: "/student/dashboard", icon: LayoutDashboard },
-      { title: "My Fees", url: "/student/dashboard", icon: Receipt },
-      { title: "Timetable", url: "/student/dashboard", icon: Calendar },
+      { title: "Student Dashboard", url: "/student/dashboard", icon: LayoutDashboard },
     ],
   };
 

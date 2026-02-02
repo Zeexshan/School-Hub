@@ -10,28 +10,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, Loader2, Calendar } from "lucide-react";
+import { Plus, Trash2, Loader2, Calendar, UserCheck } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Class, Section, User, Timetable } from "@shared/schema";
-
-const timetableFormSchema = z.object({
-  classId: z.string().min(1, "Class is required"),
-  sectionId: z.string().min(1, "Section is required"),
-  teacherId: z.string().min(1, "Teacher is required"),
-  subject: z.string().min(1, "Subject is required"),
-  dayOfWeek: z.coerce.number().min(1).max(6),
-  periodNumber: z.coerce.number().min(1).max(8),
-  startTime: z.string().min(1, "Start time is required"),
-  endTime: z.string().min(1, "End time is required"),
-});
-
-type TimetableFormValues = z.infer<typeof timetableFormSchema>;
+import { insertTimetableSchema } from "@shared/schema";
 
 const DAYS = [
   { id: 1, name: "Monday" },
@@ -50,27 +37,23 @@ export default function TimetablePage() {
 
   const { data: classes } = useQuery<Class[]>({ queryKey: ["/api/classes"] });
   const { data: sections } = useQuery<Section[]>({ 
-    queryKey: [`/api/classes/${selectedClass}/sections`],
+    queryKey: [selectedClass ? `/api/classes/${selectedClass}/sections` : "/api/sections"],
     enabled: !!selectedClass 
   });
   const { data: teachers } = useQuery<User[]>({ queryKey: ["/api/users/role/teacher"] });
-  const { data: timetable, isLoading } = useQuery<Timetable[]>({
-    queryKey: [`/api/timetable/class/${selectedClass}/section/${selectedSection}`],
-    enabled: !!selectedClass && !!selectedSection
+  const { data: timetable } = useQuery<Timetable[]>({
+    queryKey: [selectedClass ? `/api/timetable/class/${selectedClass}` : "/api/timetable"],
+    enabled: !!selectedClass
   });
 
   const createEntry = useMutation({
-    mutationFn: async (data: TimetableFormValues) => {
+    mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/timetable", data);
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/timetable/class/${selectedClass}/section/${selectedSection}`] });
+      queryClient.invalidateQueries({ queryKey: [selectedClass ? `/api/timetable/class/${selectedClass}` : "/api/timetable"] });
       toast({ title: "Success", description: "Timetable entry added" });
-      form.reset({
-        ...form.getValues(),
-        periodNumber: (form.getValues().periodNumber % 8) + 1
-      });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -82,13 +65,13 @@ export default function TimetablePage() {
       await apiRequest("DELETE", `/api/timetable/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/timetable/class/${selectedClass}/section/${selectedSection}`] });
+      queryClient.invalidateQueries({ queryKey: [selectedClass ? `/api/timetable/class/${selectedClass}` : "/api/timetable"] });
       toast({ title: "Deleted", description: "Timetable entry removed" });
     },
   });
 
-  const form = useForm<TimetableFormValues>({
-    resolver: zodResolver(timetableFormSchema),
+  const form = useForm({
+    resolver: zodResolver(insertTimetableSchema),
     defaultValues: {
       classId: "",
       sectionId: "",
@@ -102,16 +85,21 @@ export default function TimetablePage() {
   });
 
   const renderCell = (dayId: number, periodNum: number) => {
-    const entry = timetable?.find(e => e.dayOfWeek === dayId && e.periodNumber === periodNum);
-    if (!entry) return <div className="h-20 border border-dashed rounded-md flex items-center justify-center text-muted-foreground text-xs">Free</div>;
+    const entry = timetable?.find(e => e.dayOfWeek === dayId && e.periodNumber === periodNum && (selectedSection ? e.sectionId === selectedSection : true));
+    if (!entry) return <div className="h-24 border border-dashed rounded-md flex items-center justify-center text-muted-foreground text-xs">Free</div>;
 
     const teacher = teachers?.find(t => t.id === entry.teacherId);
 
     return (
-      <div className="h-20 p-2 bg-primary/10 border border-primary/20 rounded-md relative group">
-        <div className="font-bold text-sm truncate">{entry.subject}</div>
-        <div className="text-xs text-muted-foreground truncate">{teacher?.name}</div>
-        <div className="text-[10px] text-muted-foreground mt-1">{entry.startTime}-{entry.endTime}</div>
+      <div className="h-24 p-2 bg-primary/10 border border-primary/20 rounded-md relative group flex flex-col justify-between">
+        <div>
+          <div className="font-bold text-sm truncate">{entry.subject}</div>
+          <div className="text-xs text-muted-foreground truncate">{teacher?.name}</div>
+          <div className="text-[10px] text-muted-foreground mt-1">{entry.startTime}-{entry.endTime}</div>
+        </div>
+        
+        <SubstitutionButton slot={entry} teachers={teachers || []} />
+
         <Button
           variant="destructive"
           size="icon"
@@ -241,7 +229,7 @@ export default function TimetablePage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Period</FormLabel>
-                          <Input type="number" min={1} max={8} {...field} />
+                          <Input type="number" min={1} max={8} {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
                         </FormItem>
                       )}
                     />
@@ -285,10 +273,10 @@ export default function TimetablePage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {!selectedClass || !selectedSection ? (
+              {!selectedClass ? (
                 <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
                   <Calendar className="h-12 w-12 mb-4 opacity-20" />
-                  <p>Select a class and section to view timetable</p>
+                  <p>Select a class to view timetable</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -297,7 +285,7 @@ export default function TimetablePage() {
                       <tr>
                         <th className="p-2 border bg-muted/50 w-24">Day</th>
                         {[1, 2, 3, 4, 5, 6, 7, 8].map(p => (
-                          <th key={p} className="p-2 border bg-muted/50 min-w-[120px]">Period {p}</th>
+                          <th key={p} className="p-2 border bg-muted/50 min-w-[140px]">Period {p}</th>
                         ))}
                       </tr>
                     </thead>
@@ -321,5 +309,46 @@ export default function TimetablePage() {
         </div>
       </div>
     </Layout>
+  );
+}
+
+function SubstitutionButton({ slot, teachers }: { slot: Timetable, teachers: User[] }) {
+  const [showSubs, setShowSubs] = useState(false);
+  
+  const { data: subs, isLoading } = useQuery<User[]>({
+    queryKey: ["/api/timetable/substitutes", { dayOfWeek: slot.dayOfWeek, periodNumber: slot.periodNumber, teacherId: slot.teacherId }],
+    enabled: showSubs,
+  });
+
+  return (
+    <div className="mt-1">
+      <Button 
+        variant="ghost" 
+        size="sm" 
+        className="h-6 text-[10px] w-full px-1"
+        onClick={() => setShowSubs(!showSubs)}
+      >
+        {showSubs ? "Hide Subs" : "Suggest Subs"}
+      </Button>
+      {showSubs && (
+        <div className="absolute left-0 right-0 bottom-full mb-1 z-50 p-2 bg-popover border rounded-md shadow-md text-[10px] max-h-32 overflow-y-auto">
+          <p className="font-semibold border-b mb-1 pb-1">Available Teachers:</p>
+          {isLoading ? (
+            <Loader2 className="w-3 h-3 animate-spin mx-auto my-2" />
+          ) : subs && subs.length > 0 ? (
+            <div className="space-y-1">
+              {subs.map(s => (
+                <div key={s.id} className="flex items-center gap-1 hover:bg-muted p-1 rounded cursor-default">
+                  <UserCheck className="w-3 h-3 text-green-600" />
+                  <span className="font-medium">{s.name}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground italic text-center py-1">None available</p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

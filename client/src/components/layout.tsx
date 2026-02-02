@@ -9,7 +9,8 @@ import {
   CreditCard,
   LogOut,
   Menu,
-  X
+  X,
+  Calendar
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ export function Layout({ children }: LayoutProps) {
         { href: "/admin/students", label: "Students", icon: Users },
         { href: "/admin/teachers", label: "Teachers", icon: GraduationCap },
         { href: "/admin/classes", label: "Classes", icon: BookOpen },
+        { href: "/admin/timetable", label: "Timetable", icon: Calendar },
         { href: "/admin/fees", label: "Fees", icon: CreditCard },
       ];
     }
@@ -84,6 +86,21 @@ export function Layout({ children }: LayoutProps) {
               </div>
             </Link>
           ))}
+          {user?.role === 'admin' && (
+            <Link key="/admin/timetable" href="/admin/timetable">
+              <div
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 cursor-pointer",
+                  location === "/admin/timetable"
+                    ? "bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <Calendar className="w-5 h-5" />
+                Timetable
+              </div>
+            </Link>
+          )}
         </nav>
 
         <div className="p-4 border-t border-border/50">
