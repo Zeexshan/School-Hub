@@ -5,10 +5,12 @@ import {
   LayoutDashboard,
   GraduationCap,
   Receipt,
+  LogOut,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -20,7 +22,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Link, useLocation } from "wouter";
 
 export function AppSidebar() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [location] = useLocation();
 
   const menuItems = {
@@ -33,11 +35,11 @@ export function AppSidebar() {
       { title: "Fees", url: "/admin/fees", icon: Receipt },
     ],
     teacher: [
-      { title: "Teacher Dashboard", url: "/teacher/dashboard", icon: LayoutDashboard },
+      { title: "Dashboard", url: "/teacher/dashboard", icon: LayoutDashboard },
       { title: "Mark Attendance", url: "/teacher/attendance", icon: CheckCircle },
     ],
     student: [
-      { title: "Student Dashboard", url: "/student/dashboard", icon: LayoutDashboard },
+      { title: "Dashboard", url: "/student/dashboard", icon: LayoutDashboard },
     ],
   };
 
@@ -70,6 +72,19 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="p-4 border-t border-sidebar-border">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => logout()}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }
