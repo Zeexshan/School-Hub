@@ -194,7 +194,19 @@ export default function StudentsPage() {
           guardianContact: values.guardianContact,
           guardianEmail: values.guardianEmail || undefined,
         },
-        { onSuccess: () => setIsAddOpen(false) }
+        { 
+          onSuccess: () => {
+            setIsAddOpen(false);
+            toast({ title: "Success", description: "Student enrolled successfully" });
+          },
+          onError: (error: any) => {
+            toast({ 
+              title: "Enrollment Failed", 
+              description: error.message || "Could not complete enrollment", 
+              variant: "destructive" 
+            });
+          }
+        }
       );
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });

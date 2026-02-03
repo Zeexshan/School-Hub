@@ -210,7 +210,7 @@ const TeacherProfileSchema = new Schema<TeacherProfileDocument>({
   joinDate: { type: String, required: true },
   designation: { type: String, required: true },
   employeeId: { type: String, required: true, unique: true },
-  salaryHistory: { type: [Schema.Types.Mixed], default: [] },
+  salaryHistory: { type: Schema.Types.Mixed, default: [] },
 });
 
 const TimetableSchema = new Schema<TimetableDocument>({
@@ -680,6 +680,10 @@ export class MongoStorage implements IStorage {
   }
 
   async createStudent(studentData: InsertStudent): Promise<Student> {
+    const existing = await StudentModel.findOne({ admissionNumber: studentData.admissionNumber });
+    if (existing) {
+      throw new Error(`Student with admission number ${studentData.admissionNumber} already exists`);
+    }
     const doc = await StudentModel.create(studentData);
     return docToStudent(doc);
   }

@@ -28,6 +28,13 @@ export async function apiRequest(
     body: data ? JSON.stringify(data) : undefined,
   });
 
+  if (res.status === 401) {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/auth";
+    throw new Error("Session expired. Please login again.");
+  }
+
   await throwIfResNotOk(res);
   return res;
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout";
 import { useClasses, useSections } from "@/hooks/use-classes";
 import { useStudents } from "@/hooks/use-students";
@@ -24,11 +24,20 @@ export default function AttendancePage() {
 
   const { data: classes } = useClasses();
   const { data: sections } = useSections(selectedClass);
-  const { data: students } = useStudents(); // In real app, filter by class/section
+  const { data: students } = useStudents();
   const { data: existingAttendance } = useAttendanceByDate(selectedClass, selectedSection, date);
   const { mutate: markAttendance, isPending } = useMarkAttendance();
 
-  // Filter students based on selection
+  // Sync existing attendance to local state
+  useEffect(() => {
+    if (existingAttendance) {
+      const state: Record<string, "Present" | "Absent"> = {};
+      existingAttendance.forEach((record: any) => {
+        state[record.studentId] = record.status;
+      });
+      setAttendanceState(state);
+    }
+  }, [existingAttendance]);
   const filteredStudents = students?.filter(
     (s: any) => s.classId === selectedClass && s.sectionId === selectedSection
   ) || [];
