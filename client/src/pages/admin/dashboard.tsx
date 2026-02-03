@@ -25,8 +25,8 @@ import {
 } from "recharts";
 
 export default function AdminDashboard() {
+  // We now grab the 'error' object to catch failures
   const { data: analytics, isLoading, error } = useAnalytics();
-  const data = analytics as any;
 
   if (isLoading) {
     return (
@@ -38,6 +38,8 @@ export default function AdminDashboard() {
     );
   }
 
+  // --- ERROR HANDLING BLOCK ---
+  // If the API fails (like the 401 error), this prevents the "White Screen of Death"
   if (error) {
     return (
       <Layout>
@@ -46,8 +48,7 @@ export default function AdminDashboard() {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Error Loading Dashboard</AlertTitle>
             <AlertDescription>
-              {error.message ||
-                "Failed to load data. Your session may have expired. Please Logout and Login again."}
+              {error instanceof Error ? error.message : "Failed to load data. Please Logout and Login again."}
             </AlertDescription>
           </Alert>
         </div>
@@ -55,8 +56,8 @@ export default function AdminDashboard() {
     );
   }
 
-  const revenueData = data?.revenueTrend || [];
-  const attendanceData = data?.attendanceTrend || [];
+  const revenueData = (analytics as any)?.revenueTrend || [];
+  const attendanceData = (analytics as any)?.attendanceTrend || [];
 
   return (
     <Layout>
@@ -70,28 +71,29 @@ export default function AdminDashboard() {
           </p>
         </div>
 
+        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatsCard
             title="Total Students"
-            value={data?.totalStudents || 0}
+            value={(analytics as any)?.totalStudents || 0}
             icon={Users}
             description="Active enrolments"
           />
           <StatsCard
             title="Total Teachers"
-            value={data?.totalTeachers || 0}
+            value={(analytics as any)?.totalTeachers || 0}
             icon={GraduationCap}
             description="Faculty members"
           />
           <StatsCard
             title="Monthly Revenue"
-            value={formatCurrency(data?.monthlyRevenue || 0)}
+            value={formatCurrency((analytics as any)?.monthlyRevenue || 0)}
             icon={DollarSign}
             description="Fees collected this month"
           />
           <StatsCard
             title="Today's Attendance"
-            value={`${data?.todayAttendance || 0}%`}
+            value={`${(analytics as any)?.todayAttendance || 0}%`}
             icon={Calendar}
             description="Overall presence"
           />
